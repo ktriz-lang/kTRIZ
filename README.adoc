@@ -1,0 +1,149 @@
+= kTRIZ
+
+Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
+
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 1). Only the
+core contradiction spine exists, the contradiction matrix is deliberately
+populated with three example cells (see <<matrix>>), there is no CLI, no
+scripting host and no published artifact. The API is unstable.
+
+Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
+
+== Why kTRIZ
+
+Large language models are strong in mainstream, high-resource languages like
+Kotlin and weak in obscure, low-resource domain-specific notations. TRIZ today
+mostly lives in flipcharts, spreadsheet transcriptions of the classical
+contradiction matrix, and scanned PDF tables -- none of it compiler-checkable,
+all of it easy for an LLM to hallucinate against (an invented parameter name,
+a swapped improving/worsening direction, a matrix cell that does not exist).
+
+kTRIZ turns TRIZ's core vocabulary -- engineering parameters, inventive
+principles, contradictions and the contradiction matrix -- into ordinary
+Kotlin types. An LLM that names a nonexistent parameter simply fails to
+compile; the compiler becomes the oracle that catches the mistake before a
+human ever sees it. This is the same Typed Domain Grounding idea behind the
+sibling projects kUML (models for the IT domain) and kSTEP (STEP/EXPRESS for
+mechanical engineering) -- kTRIZ applies it to inventive problem solving.
+
+== Status
+
+What works today:
+
+* All 39 classical Altshuller engineering parameters, as a Kotlin `enum` with
+  English and German labels.
+* All 40 classical inventive principles, same shape.
+* `Contradiction` + the `contradiction { }` factory, with a compiler-enforced
+  existence check (an invented parameter does not compile) and a runtime
+  well-formedness check (a parameter cannot contradict itself).
+* `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
+  deterministic matrix lookup, currently populated with exactly three example
+  cells (see <<matrix>>).
+* 27 Kotest test cases covering the above.
+
+What does not exist yet: the full 39x39 contradiction matrix, the function
+model, kUML-based rendering, an MCP server, a `*.ktriz.kts` scripting host,
+and any real CLI command (`ktriz-cli` currently prints a placeholder banner
+only). See <<roadmap>>.
+
+== Hello World
+
+kTRIZ has no scripting host yet (see <<roadmap>>), so this is plain Kotlin,
+not a `.ktriz.kts` script:
+
+[source,kotlin]
+----
+import dev.ktriz.core.EngineeringParameter
+import dev.ktriz.core.contradiction
+import dev.ktriz.core.resolve
+
+fun main() {
+    // "I want to make the chassis lighter, but as soon as I remove material
+    //  it becomes too weak and breaks."
+    val problem =
+        contradiction(
+            improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
+            worsening = EngineeringParameter.STRENGTH,
+        )
+
+    println("Contradiction: ${problem.improving.labelEn} up vs. ${problem.worsening.labelEn} down")
+    problem.resolve().forEach { p -> println("  #${p.id}  ${p.labelEn}") }
+}
+----
+
+Expected output:
+
+----
+Contradiction: Weight of moving object up vs. Strength down
+  #1   Segmentation
+  #8   Anti-weight
+  #40  Composite materials
+  #15  Dynamics
+----
+
+== The compiler as oracle
+
+Ask an LLM to improve "chassis weight" against a made-up parameter, and the
+mistake shows up as an ordinary Kotlin compiler error rather than as a subtly
+wrong recommendation:
+
+----
+error: unresolved reference: STRUCTURAL_INTEGRITY
+----
+
+That error message is itself a repair signal a generate-compile-repair loop
+can act on -- there is no such thing as a plausible-looking but wrong
+parameter name in kTRIZ, because parameters that do not exist do not compile.
+
+[#matrix]
+== Contradiction matrix data (deliberately incomplete)
+
+The classical Altshuller contradiction matrix is, in substance, generally
+treated as public domain by the TRIZ community's goodwill. But a concrete,
+digitised *transcription* of that matrix can separately attract an EU sui
+generis database right even where the underlying facts are free -- and later,
+commercially maintained matrices (Matrix 2003 / 2010 / 2022) remain under
+their authors' copyright and are licensed selectively. kTRIZ therefore ships
+only three example cells today; sourcing and clearing a complete matrix is
+reserved for its own later wave, with explicit user sign-off. A pluggable
+matrix-source seam is planned so that users who hold a Matrix 2003/2010
+licence can supply their own data locally -- kTRIZ itself will never bundle
+it. See kTRIZ-ADR-0003 for the full analysis.
+
+== Modules
+
+[cols="1,3"]
+|===
+| Module | Purpose
+
+| `ktriz-core`
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`. No dependencies beyond the Kotlin standard library.
+
+| `ktriz-cli`
+| Placeholder command-line entry point. No commands implemented yet.
+
+| `ktriz-tests`
+| Kotest test suite for `ktriz-core` and the `ktriz-cli` placeholder.
+|===
+
+== Building
+
+Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
+
+[source,shell]
+----
+./gradlew clean check
+----
+
+== Roadmap
+
+* Full 39x39 contradiction matrix, from a provably freely-licensed source, with a pluggable matrix-source seam.
+* Function model (`functionModel { }`).
+* kUML-based SVG rendering (kTRIZ consumes kUML as a library; kTRIZ never becomes a kUML dependency).
+* `*.ktriz.kts` Kotlin scripting host.
+* MCP server.
+* Real CLI commands, plus kotlin-logging-based logging once there is an actual process worth logging.
+
+== Licence
+
+Apache License, Version 2.0. See link:LICENSE[LICENSE] and link:NOTICE[NOTICE].

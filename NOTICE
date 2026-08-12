@@ -1,0 +1,25 @@
+kTRIZ
+Copyright 2026 Irakli Betchvaia
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+TRIZ, the 39 engineering parameters, the 40 inventive principles and the
+classical 39x39 contradiction matrix originate with Genrich Altshuller and
+his collaborators (1946-1985), who released the TRIZ methodology into the
+public domain by the authors' goodwill. kTRIZ ships only the classical
+parameter and principle lists and, at present, three example matrix cells
+transcribed in-house.
+
+kTRIZ does NOT ship, and will not ship, the Matrix 2003 / Matrix 2010 /
+Matrix 2022 data sets (Darrell Mann / Systematic Innovation / CREAX), which
+remain under their authors' copyright and are licensed selectively. A future
+pluggable matrix-source seam is intended to let holders of such a licence
+supply their own data locally.
+
+Note that "public domain by goodwill" is a community consensus, not a formal
+licence grant (there is no CC0 dedication). A concrete digitised
+transcription of the matrix may separately attract an EU sui generis
+database right even where the underlying facts are free. See kTRIZ-ADR-0003
+in the project's design notes; this is an open verification item, not a
+settled one.
