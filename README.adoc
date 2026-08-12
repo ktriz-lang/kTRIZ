@@ -1,7 +1,5 @@
 = kTRIZ
 
-image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://github.com/ktriz-lang/kTRIZ]
-
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
 WARNING: kTRIZ is in very early, pre-release development (M1, wave 1). Only the
