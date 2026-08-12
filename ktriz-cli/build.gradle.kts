@@ -14,3 +14,11 @@ application {
     // dessen Kosten von Startup/Kompilierung dominiert werden -- Peak-Throughput ist irrelevant.
     applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
 }
+
+dependencies {
+    // Projektweite Kotlin-Konvention (CLAUDE.md): Logging ausschliesslich ueber
+    // kotlin-logging, kein println-basiertes Ad-hoc-Logging. slf4j-simple als
+    // Runtime-Backend, sonst bleibt kotlin-logging ein stiller NOP-Logger.
+    implementation(libs.kotlin.logging.jvm)
+    runtimeOnly(libs.slf4j.simple)
+}
