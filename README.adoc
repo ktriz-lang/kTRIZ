@@ -39,7 +39,7 @@ What works today:
 * `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
   deterministic matrix lookup, currently populated with exactly three example
   cells (see <<matrix>>).
-* 27 Kotest test cases covering the above.
+* 36 Kotest test cases covering the above.
 
 What does not exist yet: the full 39x39 contradiction matrix, the function
 model, kUML-based rendering, an MCP server, a `*.ktriz.kts` scripting host,
