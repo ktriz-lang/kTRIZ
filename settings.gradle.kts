@@ -20,5 +20,6 @@ dependencyResolutionManagement {
 include(
     "ktriz-core",
     "ktriz-cli",
+    "ktriz-render-kuml",
     "ktriz-tests",
 )

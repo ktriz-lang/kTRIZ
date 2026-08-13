@@ -4,12 +4,15 @@ ktlint-plugin = "14.2.0"
 kotest = "5.9.1"
 kotlin-logging = "8.0.4"
 slf4j-simple = "2.0.18"
+kuml-layout = "0.50.0"
 
 [libraries]
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 kotlin-logging-jvm = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
+kuml-layout-api = { module = "dev.kuml:kuml-layout-api", version.ref = "kuml-layout" }
+kuml-layout-elk = { module = "dev.kuml:kuml-layout-elk", version.ref = "kuml-layout" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

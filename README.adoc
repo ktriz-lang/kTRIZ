@@ -4,11 +4,11 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 2). Only
-the core contradiction spine and the function model exist, the contradiction
-matrix is deliberately populated with three example cells (see <<matrix>>),
-there is no CLI, no scripting host and no published artifact. The API is
-unstable.
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 3). The
+core contradiction spine, the function model and SVG rendering for the
+function model exist, the contradiction matrix is deliberately populated
+with three example cells (see <<matrix>>), there is no CLI, no scripting
+host and no published artifact. The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -45,12 +45,17 @@ What works today:
 * `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
   nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
   `EXCESSIVE`, with automatic component dedup by name (see <<function-model>>).
-* 48 Kotest test cases covering the above.
+* `FunctionModel.renderSvg()` (module `ktriz-render-kuml`) -- renders a
+  `functionModel { }` to a standalone SVG document, using kUML's
+  `kuml-layout-api`/`kuml-layout-elk` purely as a graph-layout engine (no
+  kUML metamodel, no kUML SVG renderer). `FunctionQuality` maps to a stroke
+  treatment: `USEFUL` solid, `INSUFFICIENT` dashed, `EXCESSIVE` a doubled
+  line, `HARMFUL` a wavy path (see <<function-model-svg>>).
+* 61 Kotest test cases covering the above.
 
-What does not exist yet: the full 39x39 contradiction matrix, kUML-based
-rendering, an MCP server, a `*.ktriz.kts` scripting host, and any real CLI
-command (`ktriz-cli` currently prints a placeholder banner only). See
-<<roadmap>>.
+What does not exist yet: the full 39x39 contradiction matrix, an MCP server,
+a `*.ktriz.kts` scripting host, and any real CLI command (`ktriz-cli`
+currently prints a placeholder banner only). See <<roadmap>>.
 
 == Hello World
 
@@ -127,6 +132,42 @@ Self-loops (a component acting on itself, e.g. a part wearing itself out) are
 accepted on purpose -- see the KDoc on `FunctionModelBuilder` for the
 reasoning.
 
+[#function-model-svg]
+== Rendering a function model
+
+The `ktriz-render-kuml` module renders any `functionModel { }` to a
+standalone SVG document:
+
+[source,kotlin]
+----
+import dev.ktriz.function.functionModel
+import dev.ktriz.render.kuml.renderSvg
+
+val fm = functionModel {
+    val engine = component("Engine")
+    val coolant = component("Coolant")
+    val block = component("Cylinder block")
+    useful(from = coolant, to = engine, verb = "cools")
+    harmful(from = engine, to = block, verb = "overheats")
+    insufficient(from = coolant, to = engine, verb = "circulates")
+}
+
+File("function-model.svg").writeText(fm.renderSvg())
+----
+
+kUML is used here strictly as a *layout* library, not as a diagram renderer:
+`ElkLayoutEngine` (from `kuml-layout-elk`) computes node positions and edge
+routes for the component graph, and kTRIZ owns the actual SVG markup and the
+mapping from `FunctionQuality` to stroke style. This split exists because
+kUML's own SVG renderer (`kuml-io-svg`) is built around specific metamodel
+packages (UML, C4, SysML2, BPMN, Blueprint, ERM) with per-relationship-subtype
+hardcoded line styles and no generic node/edge diagram entry point a
+`FunctionModel` could plug into -- and no wavy/doubled-line concept a
+`FunctionQuality` could map onto. `USEFUL` renders as a plain solid stroke,
+`INSUFFICIENT` as a dashed stroke, `EXCESSIVE` as two parallel lines (the
+engineering-drawing convention for an over-strong connection), and `HARMFUL`
+as a sine-perturbed wavy path.
+
 == The compiler as oracle
 
 Ask an LLM to improve "chassis weight" against a made-up parameter, and the
@@ -168,8 +209,11 @@ it. See kTRIZ-ADR-0003 for the full analysis.
 | `ktriz-cli`
 | Placeholder command-line entry point. No commands implemented yet.
 
+| `ktriz-render-kuml`
+| Renders `functionModel { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` (layout only, no kUML metamodel/rendering dependency).
+
 | `ktriz-tests`
-| Kotest test suite for `ktriz-core` and the `ktriz-cli` placeholder.
+| Kotest test suite for `ktriz-core`, `ktriz-render-kuml`, and the `ktriz-cli` placeholder.
 |===
 
 == Building
@@ -184,10 +228,11 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 == Roadmap
 
 * Full 39x39 contradiction matrix, from a provably freely-licensed source, with a pluggable matrix-source seam.
-* kUML-based SVG rendering for `functionModel { }` (Weg B from kTRIZ-ADR-0002: consume kUML as a library dependency, in-process render call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core). Deferred -- kUML's SVG renderer (`kuml-io-svg`) is built around specific metamodel packages (`dev.kuml.io.svg.uml`, `.c4`, `.sysml2`, `.bpmn`, `.blueprint`, `.erm`); there is no generic node/edge diagram entry point a `FunctionModel` could plug into without first deciding which existing metamodel's vocabulary a `FunctionEdge`'s four qualities map onto (or introducing a new one) -- a design question, not a rendering implementation detail, and out of scope for the wave that added `functionModel { }`.
+* kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
 * `*.ktriz.kts` Kotlin scripting host.
 * MCP server.
 * Real CLI commands, plus kotlin-logging-based logging once there is an actual process worth logging.
+* `FunctionModel.renderSvg()` follow-ups, explicitly out of scope for V1: real font-metrics-based node sizing instead of the fixed 140x60 px box; arrowheads on edges; visual separation for multiple edges between the same component pair; a dedicated fixed-radius loop arc for self-loops instead of relying on whatever ELK's `elk.layered` self-loop strategy produces.
 
 == Licence
 
