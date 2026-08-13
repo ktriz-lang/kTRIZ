@@ -4,10 +4,11 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 1). Only the
-core contradiction spine exists, the contradiction matrix is deliberately
-populated with three example cells (see <<matrix>>), there is no CLI, no
-scripting host and no published artifact. The API is unstable.
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 2). Only
+the core contradiction spine and the function model exist, the contradiction
+matrix is deliberately populated with three example cells (see <<matrix>>),
+there is no CLI, no scripting host and no published artifact. The API is
+unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -41,12 +42,15 @@ What works today:
 * `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
   deterministic matrix lookup, currently populated with exactly three example
   cells (see <<matrix>>).
-* 36 Kotest test cases covering the above.
+* `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
+  nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
+  `EXCESSIVE`, with automatic component dedup by name (see <<function-model>>).
+* 48 Kotest test cases covering the above.
 
-What does not exist yet: the full 39x39 contradiction matrix, the function
-model, kUML-based rendering, an MCP server, a `*.ktriz.kts` scripting host,
-and any real CLI command (`ktriz-cli` currently prints a placeholder banner
-only). See <<roadmap>>.
+What does not exist yet: the full 39x39 contradiction matrix, kUML-based
+rendering, an MCP server, a `*.ktriz.kts` scripting host, and any real CLI
+command (`ktriz-cli` currently prints a placeholder banner only). See
+<<roadmap>>.
 
 == Hello World
 
@@ -82,6 +86,46 @@ Contradiction: Weight of moving object up vs. Strength down
   #40  Composite materials
   #15  Dynamics
 ----
+
+[#function-model]
+== Function model
+
+A second small DSL, `functionModel { }`, models TRIZ function analysis: which
+components exist, and which functions connect them, judged useful, harmful,
+insufficient, or excessive.
+
+[source,kotlin]
+----
+import dev.ktriz.function.functionModel
+
+val fm = functionModel {
+    val engine = component("Engine")
+    val coolant = component("Coolant")
+    val block = component("Cylinder block")
+    useful(from = coolant, to = engine, verb = "cools")
+    harmful(from = engine, to = block, verb = "overheats")
+    insufficient(from = coolant, to = engine, verb = "circulates")
+}
+
+println("${fm.components.size} components, ${fm.edges.size} functions")
+fm.edges.forEach { e -> println("  ${e.from.name} --[${e.quality}]--> ${e.to.name} (${e.verb})") }
+----
+
+Expected output:
+
+----
+3 components, 3 functions
+  Coolant --[USEFUL]--> Engine (cools)
+  Engine --[HARMFUL]--> Cylinder block (overheats)
+  Coolant --[INSUFFICIENT]--> Engine (circulates)
+----
+
+Components declared by name are deduped automatically -- `component("Engine")`
+can be called again at any later edge site and always returns the same node,
+so callers do not need to pre-declare every component before using it.
+Self-loops (a component acting on itself, e.g. a part wearing itself out) are
+accepted on purpose -- see the KDoc on `FunctionModelBuilder` for the
+reasoning.
 
 == The compiler as oracle
 
@@ -119,7 +163,7 @@ it. See kTRIZ-ADR-0003 for the full analysis.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`. No dependencies beyond the Kotlin standard library.
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `functionModel`. No dependencies beyond the Kotlin standard library.
 
 | `ktriz-cli`
 | Placeholder command-line entry point. No commands implemented yet.
@@ -140,8 +184,7 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 == Roadmap
 
 * Full 39x39 contradiction matrix, from a provably freely-licensed source, with a pluggable matrix-source seam.
-* Function model (`functionModel { }`).
-* kUML-based SVG rendering (kTRIZ consumes kUML as a library; kTRIZ never becomes a kUML dependency).
+* kUML-based SVG rendering for `functionModel { }` (Weg B from kTRIZ-ADR-0002: consume kUML as a library dependency, in-process render call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core). Deferred -- kUML's SVG renderer (`kuml-io-svg`) is built around specific metamodel packages (`dev.kuml.io.svg.uml`, `.c4`, `.sysml2`, `.bpmn`, `.blueprint`, `.erm`); there is no generic node/edge diagram entry point a `FunctionModel` could plug into without first deciding which existing metamodel's vocabulary a `FunctionEdge`'s four qualities map onto (or introducing a new one) -- a design question, not a rendering implementation detail, and out of scope for the wave that added `functionModel { }`.
 * `*.ktriz.kts` Kotlin scripting host.
 * MCP server.
 * Real CLI commands, plus kotlin-logging-based logging once there is an actual process worth logging.
