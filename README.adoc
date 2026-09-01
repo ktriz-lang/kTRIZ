@@ -4,11 +4,11 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 3). The
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 4). The
 core contradiction spine, the function model and SVG rendering for the
-function model exist, the contradiction matrix is deliberately populated
-with three example cells (see <<matrix>>), there is no CLI, no scripting
-host and no published artifact. The API is unstable.
+function model exist, the contradiction matrix is fully populated with the
+classical 39x39 table (1248 cells, see <<matrix>>), there is no CLI, no
+scripting host and no published artifact. The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -40,8 +40,8 @@ What works today:
   existence check (an invented parameter does not compile) and a runtime
   well-formedness check (a parameter cannot contradict itself).
 * `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
-  deterministic matrix lookup, currently populated with exactly three example
-  cells (see <<matrix>>).
+  deterministic matrix lookup over the full classical 39x39 matrix, 1248
+  populated cells, loaded from a bundled classpath resource (see <<matrix>>).
 * `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
   nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
   `EXCESSIVE`, with automatic component dedup by name (see <<function-model>>).
@@ -51,11 +51,11 @@ What works today:
   kUML metamodel, no kUML SVG renderer). `FunctionQuality` maps to a stroke
   treatment: `USEFUL` solid, `INSUFFICIENT` dashed, `EXCESSIVE` a doubled
   line, `HARMFUL` a wavy path (see <<function-model-svg>>).
-* 61 Kotest test cases covering the above.
+* 85 Kotest test cases covering the above.
 
-What does not exist yet: the full 39x39 contradiction matrix, an MCP server,
-a `*.ktriz.kts` scripting host, and any real CLI command (`ktriz-cli`
-currently prints a placeholder banner only). See <<roadmap>>.
+What does not exist yet: an MCP server, a `*.ktriz.kts` scripting host, and
+any real CLI command (`ktriz-cli` currently prints a placeholder banner
+only). See <<roadmap>>.
 
 == Hello World
 
@@ -86,10 +86,10 @@ Expected output:
 
 ----
 Contradiction: Weight of moving object up vs. Strength down
-  #1   Segmentation
-  #8   Anti-weight
+  #28  Mechanics substitution
+  #27  Cheap short-living objects
+  #18  Mechanical vibration
   #40  Composite materials
-  #15  Dynamics
 ----
 
 [#function-model]
@@ -183,19 +183,33 @@ can act on -- there is no such thing as a plausible-looking but wrong
 parameter name in kTRIZ, because parameters that do not exist do not compile.
 
 [#matrix]
-== Contradiction matrix data (deliberately incomplete)
+== Contradiction matrix data
 
 The classical Altshuller contradiction matrix is, in substance, generally
 treated as public domain by the TRIZ community's goodwill. But a concrete,
 digitised *transcription* of that matrix can separately attract an EU sui
 generis database right even where the underlying facts are free -- and later,
 commercially maintained matrices (Matrix 2003 / 2010 / 2022) remain under
-their authors' copyright and are licensed selectively. kTRIZ therefore ships
-only three example cells today; sourcing and clearing a complete matrix is
-reserved for its own later wave, with explicit user sign-off. A pluggable
-matrix-source seam is planned so that users who hold a Matrix 2003/2010
-licence can supply their own data locally -- kTRIZ itself will never bundle
-it. See kTRIZ-ADR-0003 for the full analysis.
+their authors' copyright and are licensed selectively.
+
+kTRIZ ships its own reconciled compilation of the classical 39x39 matrix
+(1248 populated cells), built from four independent, freely available
+transcriptions rather than copied from any single one: a cell is accepted
+when at least two of the four sources agree on it verbatim. kTRIZ ships and
+will ship no data from the later Matrix 2003/2010/2022. Full sourcing, the
+reconciliation method, and known anomalies are documented in
+link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]. This closes
+the *data* gap ADR-0003 tracked; the *legal* question it also tracked -- the
+EU sui generis database right on a concrete transcription -- stays an open,
+explicitly unresolved position; see kTRIZ-ADR-0003 for the current status.
+
+The parsing itself, `ContradictionMatrixData.parse(reader, provenance)`, is
+the pluggable matrix-source seam ADR-0003 calls for: it is a public, pure
+function of any `Reader`, so a user who holds a Matrix 2003/2010/2022 licence
+can parse their own file locally into the same shape, without kTRIZ ever
+shipping, downloading, or bundling that data itself. There is no
+discovery/configuration mechanism yet to swap `ContradictionMatrix`'s
+data source globally -- that is future work.
 
 == Modules
 
@@ -204,7 +218,7 @@ it. See kTRIZ-ADR-0003 for the full analysis.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `functionModel`. No dependencies beyond the Kotlin standard library.
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `functionModel`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library.
 
 | `ktriz-cli`
 | Placeholder command-line entry point. No commands implemented yet.
@@ -227,7 +241,7 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 
 == Roadmap
 
-* Full 39x39 contradiction matrix, from a provably freely-licensed source, with a pluggable matrix-source seam.
+* Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is partially done: `ContradictionMatrixData.parse(...)` exists as a public parsing entry point, but there is no discovery/configuration mechanism yet to swap `ContradictionMatrix`'s own data source at runtime.
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
 * `*.ktriz.kts` Kotlin scripting host.
 * MCP server.

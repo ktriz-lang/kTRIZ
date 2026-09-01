@@ -1,0 +1,260 @@
+= Contradiction matrix data provenance
+
+This document is the full sourcing and reconciliation record for
+`ktriz-core/src/main/resources/dev/ktriz/core/contradiction-matrix-1971.csv`,
+the classical Altshuller 39x39 contradiction matrix kTRIZ bundles. It exists
+so the matrix's origin is independently checkable, and so the legal
+reasoning behind shipping it is written down rather than assumed. See also
+kTRIZ-ADR-0003 (Matrix-Datenbasis) for the design decision this record
+implements, and `NOTICE` for the short attribution summary.
+
+Retrieved and reconciled: 2026-09-02.
+
+== Sources
+
+Four independent transcriptions of the classical matrix were retrieved and
+compared. All four are 39-parameter matrices (the classical 1971/1985
+Altshuller table), never the later 48-parameter Matrix 2003/2010/2022.
+
+[cols="1,4,2,1"]
+|===
+| Key | Source | Licence | Cells
+
+| `XLS`
+| `triz_matrix.xls`, spreadsheet titled "Contradiction Matrix". OLE metadata
+  attributes authorship to Jim Pinto, created 1997-06-06, last saved
+  2003-03-11 -- a file that has circulated freely in the TRIZ community for
+  roughly three decades. Retrieved 2026-09-02 via the GitHub repository
+  `kamil-szczepanik/TRIZ-Agents`, path `data/tools_sources/triz_matrix.xls`.
+| No licence file in the carrying repository (see <<licence-notes>>).
+| 1248
+
+| `ANT`
+| GitHub repository `Antropocosmist/triz-engineering-solver`, file
+  `resources/contradiction_matrix.json`.
+| MIT.
+| 1190
+
+| `SOR`
+| GitHub repository `sorunokoe/TRIZ-Skills`, file `matrix.md` (39 Markdown
+  tables, one per improving parameter row `R01`..`R39`).
+| MIT.
+| 1243
+
+| `FFS`
+| GitHub repository `FreeFallingSnow/TRIZ-Altshuller`, file `way.json` (a
+  Chinese-language lookup tool's data file).
+| No licence file.
+| 1245
+|===
+
+Two other candidate sources were checked and explicitly rejected:
+
+* `NickScherbakov/Heinrich-The-Inventing-Machine` (Apache-2.0) -- only 109
+  cells, and spot-checked cells were wrong (e.g. cell 1x3 given as `1;3;8`
+  instead of the classical `15,8,29,34`); the data has the shape of an
+  LLM-hallucinated table, not a transcription.
+* `jsagir/mindrian-os-plugin` -- internally transposed/mixed rows and
+  columns, unusable without more repair work than a from-scratch
+  transcription.
+* `triz40.com` -- carries an explicit copyright notice ("(C) TRIZ40 -
+  SolidCreativity") and is an interactive tool, not a redistributable
+  dataset. Consulted for cross-checking only, never used as a data source.
+
+[#licence-notes]
+== A note on `ANT`'s own provenance claim
+
+`ANT`'s metadata (`meta.primary_source` in `contradiction_matrix.json`)
+states its data was imported "via MIT-licensed kamil-szczepanik/TRIZ-Agents
+repository". Checking that claim directly --
+`gh api repos/kamil-szczepanik/TRIZ-Agents/license` -- returns HTTP 404: that
+repository carries no licence file at all. The MIT claim is therefore
+unverified and, as stated, incorrect.
+
+This does not affect `ANT` itself, which does carry its own MIT licence file
+and is used here under that licence. But `ANT`'s claim about *its own*
+upstream is not repeated or relied upon anywhere in kTRIZ's documentation --
+`kamil-szczepanik/TRIZ-Agents` (which is where kTRIZ separately retrieved
+`XLS` from) is treated here as an unlicensed source, used only as one voice
+among four in the majority-rule reconciliation below, never as a standalone
+basis for any cell.
+
+== Axis orientation
+
+`ContradictionMatrix` and `ContradictionMatrixData` use the convention row =
+improving parameter, column = worsening parameter. This was confirmed
+against the original layout of the `XLS` spreadsheet: rendered to PDF and
+inspected visually, the sheet carries two labelled arrows -- "Worsening
+Feature" pointing across the columns, "Improving Feature" pointing down the
+rows -- directly matching kTRIZ's convention.
+
+Cross-checked against the rendered table directly: row 1 x column 14 =
+`28, 27, 18, 40`; row 10 x column 14 = `35, 10, 14, 27`; row 3 x column 15 =
+`19`. All three match the reconciled dataset below.
+
+== Reconciliation method
+
+Rule: a cell is accepted into kTRIZ's compilation when at least two of the
+four sources agree on the exact same ordered principle list for that
+`(improving, worsening)` pair. The reconciliation script is
+`docs/tools/reconcile-matrix.py` (a documentation artefact, not part of the
+build -- see its header comment).
+
+Result, on the four sources above:
+
+----
+Union of all four sources:                     1248 cells
+Accepted (>= 2 sources agree verbatim):         1248 cells
+Conflicts (>= 2 sources, no two agree):            0 cells
+Single-source only (discarded):                    0 cells
+Identical across all four sources:              1154 cells
+Diagonal cells present in any source:              0 cells
+Unpopulated non-diagonal cells:                  234 cells
+Cell sizes: 1 principle: 58 | 2: 151 | 3: 313 | 4: 726
+Parameter ids: 1..39 (all 39 rows populated, 13..37 cells per row)
+Principle ids: 1..40
+----
+
+The cell-size distribution above is the raw reconciliation-script output,
+before the hand deduplication of cell 19x9 (see below): that one cell moved
+from the 3-principle bucket to the 2-principle bucket, so the shipped
+`contradiction-matrix-1971.csv` carries `1: 58 | 2: 152 | 3: 312 | 4: 726`
+instead. Total cell count (1248) is unaffected either way.
+
+No invented values, no placeholders, and no unresolved conflicts: the union
+of all four sources happened to reconcile cleanly under the majority rule.
+`XLS` participates as the fourth, corroborating voice (see <<xls-role>>) and
+is never the sole basis for a cell -- every accepted cell has at least one
+other source agreeing with it.
+
+The resulting file is not a copy, extract, or restructuring of any single
+source. Its cell count (1248) equals `XLS`'s and exceeds the other three
+(1190/1243/1245) -- `XLS`'s key set is the union and it corroborates 1244
+of the 1248 accepted values; 4 cells (1x38, 8x25, 33x10, 34x1) carry a
+value `XLS` disagrees with, and on 94 of the 1248 the four sources are not
+unanimous: 66 source-absences (`ANT` 58, `SOR` 5, `FFS` 3) and 29 genuine
+disagreements (`FFS` 24, `XLS` 4, `SOR` 1), with one cell (16x21) carrying
+both; its column shape (`improving,worsening,principles,sources`) matches
+none of the four source formats (a JSON object keyed by
+`"i,j"` strings, a Markdown table per row, a JSON array of `{worsen,
+better, way}` records, and a raw spreadsheet grid respectively); and no
+free text, parameter descriptions, worked examples, or illustrations were
+carried over from any source -- only the bare `(improving, worsening) ->
+principle ids` facts.
+
+[#xls-role]
+== The role of `XLS`
+
+`XLS`'s file itself carries no licence declaration; it is treated here as
+public-TRIZ-community folklore rather than as a licensed, attributable
+work -- nearly three decades of free circulation with no rights-holder ever
+asserting otherwise is the practical basis for that treatment, not a formal
+licence grant. Its role in this reconciliation is deliberately limited: it
+served as the primary check for axis orientation (see above), and as the
+fourth voice in the majority-rule vote -- but no cell in the shipped matrix
+rests on `XLS` alone. Restricting the reconciliation to the two MIT-licensed
+sources plus `FFS` (i.e. dropping `XLS` entirely) still resolves cleanly
+except for two cells that then fall into a conflict/single-source state
+(19x9 and 16x21), and the total cell count would be 1246 rather than 1248.
+kTRIZ ships the 1248-cell version, with `XLS` included as described.
+
+== Known anomaly: cell 19x9
+
+Sources disagree on the exact ordered principle list for cell 19x9 (Use of
+energy by moving object vs. Speed):
+
+[cols="1,3"]
+|===
+| Source | Value
+
+| `XLS`
+| `8, 35, 35`
+
+| `ANT`
+| `8, 35, 35`
+
+| `SOR`
+| `8, 35`
+
+| `FFS`
+| `8, 15, 35`
+|===
+
+`XLS` and `ANT` agree verbatim on `8, 35, 35` -- a duplicate principle id,
+almost certainly a transcription error carried from the 1997 original (a
+ranked principle list gains nothing from listing the same principle twice).
+Under the plain majority rule this is the accepted value. kTRIZ stores the
+deduplicated form `8, 35` instead: a duplicate id in a ranking is
+meaningless, and the deduplicated value is independently corroborated by
+`SOR`'s `8, 35` (a different, non-majority source, but structurally the
+same claim once the duplicate is removed). `FFS`'s `8, 15, 35` reading is
+not adopted -- it is a single, non-corroborated variant.
+
+This is the one hand-adjusted cell in the shipped dataset; every other cell
+is the literal majority-rule output of `docs/tools/reconcile-matrix.py`.
+
+== Two example cells corrected (not a data change, an address correction)
+
+Before this reconciliation, kTRIZ's contradiction matrix held three
+hand-transcribed example cells. Two of them turn out, against all four
+independent sources, to be *transposed*: what had been recorded as cell
+"1 x 14" is, in every source, actually cell "14 x 1", and likewise "1 x 3"
+was actually "3 x 1". The genuine cells 1x14 and 1x3 are different values,
+now present in the shipped matrix alongside the (also genuine, now
+correctly addressed) 14x1 and 3x1. No previously-asserted number was
+discarded -- each one now lives under its correct `(improving, worsening)`
+key. See `ktriz-tests`' `ContradictionMatrixTest` for the full set of pinned
+cells, and the kTRIZ project note "DSL-Surface (Hello World)" in the vault
+for the historical record of the original (incorrect) example.
+
+== Public domain basis
+
+Savransky, Semyon D., "A few words about the Altshuller's contradiction
+matrix", The TRIZ Journal, 1997-08-06: "This matrix well as many other TRIZ
+methods are in the public domain due to the goodwill of the author of TRIZ
+and his coworkers." -- with the explicit caveat that authorship of the idea
+remains with G. S. Altshuller. Retrieved 2026-09-02.
+
+This is community consensus, not a formal licence grant (there is no CC0
+dedication of the underlying facts, and a concrete digitised transcription
+can separately attract an EU sui generis database right regardless of the
+facts' own status). See kTRIZ-ADR-0003 for the legal position this record
+does not settle.
+
+== Explicitly not used
+
+At no point in this reconciliation was Matrix 2003, Matrix 2010, or Matrix
+2022 (Darrell Mann / CREAX / Systematic Innovation) consulted, downloaded,
+or referenced. All four sources are 39-parameter matrices; kTRIZ's parser
+(`ContradictionMatrixData.parse`) additionally enforces this structurally --
+any parameter id outside `1..39` is a parse error, which would immediately
+reject a 48-parameter Matrix 2003/2010/2022-shaped file.
+
+== Reproducing this reconciliation
+
+----
+gh api repos/Antropocosmist/triz-engineering-solver/contents/resources/contradiction_matrix.json \
+    --jq .content | base64 -d > a.json
+gh api repos/sorunokoe/TRIZ-Skills/contents/matrix.md \
+    --jq .content | base64 -d > s.md
+gh api repos/FreeFallingSnow/TRIZ-Altshuller/contents/way.json \
+    --jq .content | base64 -d > w.json
+gh api repos/kamil-szczepanik/TRIZ-Agents/contents/data/tools_sources/triz_matrix.xls \
+    --jq .content | base64 -d > triz_matrix.xls
+libreoffice --headless --convert-to csv --outdir xls_out triz_matrix.xls
+python3 docs/tools/reconcile-matrix.py .
+----
+
+Expected: `accepted=1248 conflicts=0 single-source=0`, plus the note that
+cell 19x9 carries a duplicate principle id (see above -- the reconciliation
+script does not deduplicate it automatically; that one correction was made
+by hand when the result was copied into `contradiction-matrix-1971.csv`).
+
+== Sources cited
+
+* https://the-trizjournal.com/words-altshullers-contradiction-matrix/[The TRIZ Journal -- A few words about the Altshuller's contradiction matrix]
+* https://github.com/Antropocosmist/triz-engineering-solver[Antropocosmist/triz-engineering-solver]
+* https://github.com/sorunokoe/TRIZ-Skills[sorunokoe/TRIZ-Skills]
+* https://github.com/FreeFallingSnow/TRIZ-Altshuller[FreeFallingSnow/TRIZ-Altshuller]
+* https://github.com/kamil-szczepanik/TRIZ-Agents[kamil-szczepanik/TRIZ-Agents]
+* https://wiki.matriz.org/knowledge-base/triz/problem-solving-tools-5890/contradictions/engineering-contradiction-5995/contradiction-matrix-6026/[MATRIZ wiki -- Contradiction matrix]

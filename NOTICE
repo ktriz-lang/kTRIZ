@@ -7,15 +7,30 @@ See the LICENSE file for the full license text.
 TRIZ, the 39 engineering parameters, the 40 inventive principles and the
 classical 39x39 contradiction matrix originate with Genrich Altshuller and
 his collaborators (1946-1985), who released the TRIZ methodology into the
-public domain by the authors' goodwill. kTRIZ ships only the classical
-parameter and principle lists and, at present, three example matrix cells
-transcribed in-house.
+public domain by the authors' goodwill. kTRIZ ships the classical parameter
+and principle lists and, as of 2026-09-02, a full classical 39x39
+contradiction matrix (1248 populated cells).
+
+That matrix is kTRIZ's own reconciled compilation, not a copy of any single
+source: it was assembled from four independent, freely available
+transcriptions of the classical matrix by a documented majority rule (a cell
+is accepted when at least two of the four sources agree on it verbatim), two
+of which are themselves MIT-licensed (Antropocosmist/triz-engineering-solver,
+sorunokoe/TRIZ-Skills). Full sourcing, the reconciliation method, and known
+anomalies are documented in docs/matrix-provenance.adoc. One of the four
+sources cited its own provenance as "via a MIT-licensed repository" that, on
+verification, in fact carries no licence file at all; kTRIZ does not repeat
+that unverified claim and instead treats that source's licensing as unknown,
+using it only as one voice among four rather than as a standalone basis for
+any cell.
 
 kTRIZ does NOT ship, and will not ship, the Matrix 2003 / Matrix 2010 /
 Matrix 2022 data sets (Darrell Mann / Systematic Innovation / CREAX), which
-remain under their authors' copyright and are licensed selectively. A future
-pluggable matrix-source seam is intended to let holders of such a licence
-supply their own data locally.
+remain under their authors' copyright and are licensed selectively. The
+pluggable matrix-source seam intended to let holders of such a licence
+supply their own data locally exists as a parsing entry point
+(`ContradictionMatrixData.parse`); a discovery/configuration mechanism to
+swap `ContradictionMatrix`'s own data source at runtime does not exist yet.
 
 Note that "public domain by goodwill" is a community consensus, not a formal
 licence grant (there is no CC0 dedication). A concrete digitised
