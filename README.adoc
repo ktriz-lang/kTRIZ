@@ -9,11 +9,11 @@ toolchain: contradiction spine, full classical 39x39 matrix, function models
 with SVG rendering, MCP server, scripting host) is complete and tagged as
 `v0.1.0`. M2 (substance-field/Su-Field modeling) is underway: the `suField
 { }` DSL, the six classical field types, the 5-class standard-solutions
-structure, SVG rendering of the S1-S2-Field triangle, and three Su-Field MCP
-tools all exist (see <<su-field>>, <<su-field-svg>>, <<mcp>>); the 76
-individual standard solutions as a lookup remain a deliberately deferred
-future item. `ktriz run` and `ktriz mcp` both exist; no published artifact.
-The API is unstable.
+structure, the 76 individual standard solutions (`StandardSolution`, with an
+`ofCode` lookup), SVG rendering of the S1-S2-Field triangle, and three
+Su-Field MCP tools all exist (see <<su-field>>, <<su-field-svg>>, <<mcp>>).
+`ktriz run` and `ktriz mcp` both exist; no published artifact. The API is
+unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -236,11 +236,14 @@ declared quality and which slot is missing or unexpectedly present.
 
 NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
 `StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
-solutions -- see below), and SVG rendering of the S1-S2-Field triangle (see
-<<su-field-svg>>). The 76 individual solution texts themselves and a lookup
-engine keyed on `SuFieldQuality`/`FieldType` are explicitly out of scope here
-and left to later waves (see kTRIZ-ADR-0001 and
-link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]).
+solutions -- see below), `StandardSolution` (the 76 individual solutions
+themselves, with an `ofCode` lookup by classical code, e.g. `"1.1.1"`), and
+SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>). What is
+explicitly out of scope -- and deliberately so, not deferred -- is a bridge
+function from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`
+or `StandardSolutionClass` (see kTRIZ-ADR-0001 and
+link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]
+for the reasoning).
 
 `StandardSolutionClass` carries the 5-class structure only -- id, English/
 German label, a one-sentence description, and a solution count per class
@@ -749,21 +752,31 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 * Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset, `BOW_SPACING_PX = 9` px between adjacent edges' offsets clamped to `BOW_MAX_OFFSET_PX = +/-27` px, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking `+8` px per additional self-loop on the same node up to `SELF_LOOP_STACK_MAX_PX = 44` px) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are also vertically staggered (alternating above/below the route's midpoint) so they don't render on top of each other -- a known remaining limitation: for a component pair with many edges and long verbs, the staggered labels can still overlap a neighbouring node's box or each other, since this is a fixed-step stagger, not full collision-avoidance layout.
 * Substance-field models (Su-Field) -- *done* (core model + DSL), see
-  <<su-field>>. Standard solution classes -- *done* (5-class structure
-  only), see link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc];
-  the 76 individual solutions remain a deliberately deferred future item
-  pending a trustworthy primary source. SVG rendering of the S1-S2-Field
-  triangle -- *done*, see <<su-field-svg>>: fixed, deterministic geometry
-  (no kUML layout engine involved -- the classical triangle has nothing to
-  lay out), reusing `FunctionQuality`'s stroke vocabulary for
-  `SuFieldQuality` per MATRIZ's own "similar symbols" statement. An MCP tool
-  for Su-Field -- *done*, see <<mcp>>: `build_su_field` (construction +
-  validation only -- no MCP-exposed rendering tool, consistent with
-  `build_function_model`, which likewise has none), plus the
-  `list_field_types`/`list_standard_solution_classes` catalogue tools. A
-  lookup engine over the 76 individual solutions remains a deliberately
-  deferred future item, pending a trustworthy primary source
-  (kTRIZ-ADR-0001).
+  <<su-field>>. Standard solution classes -- *done* (5-class structure), see
+  link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc].
+  The 76 individual standard solutions are *done* as `StandardSolution`
+  (classical code + owning `StandardSolutionClass` + a short English-only
+  statement per solution, English-only because no verified German-language
+  transcription of the 76-item list exists), sourced from a 5-part TRIZ
+  Journal article series (Terninko, Domb &
+  Miller, 2000) -- see the provenance doc's caveats section: this is a single
+  authorial-voice source, not a majority-reconciled compilation like the
+  contradiction matrix, and its authors describe the list as their own
+  "interpretation" rather than a verbatim Altshuller translation. As with
+  `StandardSolutionClass`, kTRIZ deliberately provides no
+  `suggestStandardSolution(suField)`-style bridge from a `SuField`/
+  `SuFieldQuality` to a specific standard solution -- see the provenance doc's
+  "No SuField/SuFieldQuality-to-StandardSolution bridge function" section.
+  SVG rendering of the S1-S2-Field triangle -- *done*, see <<su-field-svg>>:
+  fixed, deterministic geometry (no kUML layout engine involved -- the
+  classical triangle has nothing to lay out), reusing `FunctionQuality`'s
+  stroke vocabulary for `SuFieldQuality` per MATRIZ's own "similar symbols"
+  statement. An MCP tool for Su-Field -- *done*, see <<mcp>>: `build_su_field`
+  (construction + validation only -- no MCP-exposed rendering tool, consistent
+  with `build_function_model`, which likewise has none), plus the
+  `list_field_types`/`list_standard_solution_classes` catalogue tools.
+  `StandardSolution.ofCode(...)` is the lookup engine over the 76 individual
+  solutions; it is not yet exposed as its own MCP tool.
 
 == Licence
 

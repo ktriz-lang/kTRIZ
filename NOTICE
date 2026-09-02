@@ -52,11 +52,21 @@ MATRIZ wiki's "Standard Inventive Solutions (SIS)" page, (c) MATRIZ, which
 states it is "distributed under the terms of the Creative Commons, which
 permits use, distribution, and reproduction in any medium, provided the
 original source is credited" (the page does not name a specific Creative
-Commons version). kTRIZ ships only this 5-class structure, not the 76
-individual solution texts, which remain a deliberately deferred future item
-pending a trustworthy primary source -- see
-docs/standard-solutions-provenance.adoc for the full sourcing record and
-the sources evaluated and rejected.
+Commons version).
+
+The 76 individual standard solutions themselves are transcribed from a
+5-part TRIZ Journal article series, "The Seventy-Six Standard Solutions,
+with Examples" (John Terninko, Ellen Domb & Joe Miller, February-July
+2000). The Class 1 article states, immediately after its byline: "Yes, this
+is all public domain in the spirit of Altshuller." kTRIZ treats this under
+the same public-domain-by-goodwill basis as the rest of the classical TRIZ
+data it ships. This is a single authorial-voice source, not a
+majority-reconciled compilation like the contradiction matrix above, and
+its authors describe the list as their own "interpretation" of
+Altshuller-era primary sources rather than a verbatim Altshuller
+translation -- see docs/standard-solutions-provenance.adoc for the full
+sourcing record, the sources evaluated and rejected for this item-level
+list, and a documented numbering anomaly at classical code `5.1.1`.
 
 Note that "public domain by goodwill" is a community consensus, not a formal
 licence grant (there is no CC0 dedication). A concrete digitised

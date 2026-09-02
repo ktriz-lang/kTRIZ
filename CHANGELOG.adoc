@@ -8,6 +8,16 @@ without a deprecation period.
 
 === Substance-field models
 
+* `StandardSolution` (module `ktriz-core`) enumerates the 76 individual
+  classical TRIZ standard solutions -- classical dot-numbered code (e.g.
+  `"1.1.1"`), owning `StandardSolutionClass`, and a short English "what to
+  do" statement per solution -- with an `ofCode(code)` lookup. Transcribed
+  from a single 5-part TRIZ Journal article series (Terninko, Domb & Miller,
+  2000), not a majority-reconciled compilation like the contradiction
+  matrix; see `docs/standard-solutions-provenance.adoc` for the full
+  sourcing record and caveats (including the `5.1.1` numbering anomaly).
+  As with `StandardSolutionClass`, there is deliberately no bridge function
+  from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`.
 * `SuField.renderSvg()` (module `ktriz-render-kuml`) renders a `suField { }`
   model to a standalone SVG document: the classical S1-S2-Field triangle,
   F at the apex, S1 bottom-left, S2 bottom-right, action reading

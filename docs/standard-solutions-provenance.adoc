@@ -1,21 +1,28 @@
-= Standard solution classes data provenance
+= Standard solution classes and standard solutions data provenance
 
-Provenance record for `StandardSolutionClass`, the 5-class structure of
-Altshuller's 76 Standard Solutions for Su-Field analysis. See kTRIZ-ADR-0001
-for the scope decision this record documents, and `NOTICE` for the short
-attribution summary.
+Provenance record for `StandardSolutionClass` (the 5-class structure) and
+`StandardSolution` (the 76 individual standard solutions) for Altshuller's
+Su-Field analysis. See kTRIZ-ADR-0001 for the scope decision this record
+documents, and `NOTICE` for the short attribution summary.
 
-Retrieved and evaluated: 2026-09-02.
+Retrieved and evaluated: 2026-09-02 (5-class structure); 2026-09-02 (76-item
+list).
 
 == What is (and is not) bundled
 
-kTRIZ bundles only the coarse 5-class structure -- 5 entries, each with an
-id, English/German label, one-sentence description, and a solution count
-that sums to 76. kTRIZ does NOT bundle, and has no plan to bundle, the 76
-individual standard-solution texts, nor the finer sub-class groupings some
-sources use (e.g. "1.1 Synthesis" / "1.2 Destruction").
+kTRIZ bundles the 5-class structure (`StandardSolutionClass` -- 5 entries,
+id + English/German label + description + solution count) and, as of this
+record, the 76 individual standard solutions (`StandardSolution` -- classical
+code + owning class + a short English "what to do" statement per solution).
+kTRIZ does NOT bundle the worked examples that accompany each solution in the
+literature (they are long, numerous, and not needed for the DSL's purpose of
+naming and referencing a solution), nor a bridge function from `SuField`/
+`SuFieldQuality` to a specific `StandardSolution` -- see
+<<no-suggestion-function>>.
 
-== Source used
+== Part A: the 5-class structure
+
+=== Source used
 
 https://wiki.matriz.org/knowledge-base/triz/problem-solving-tools-5890/substance-field-modeling/standard-inventive-solutions/[wiki.matriz.org
 -- Standard Inventive Solutions (SIS)], (c) MATRIZ. Retrieved 2026-09-02.
@@ -60,7 +67,7 @@ data in `NOTICE`) for why kTRIZ treats classical Altshuller-era TRIZ
 classifications as goodwill-shared community facts independent of any one
 host site's own copyright notice on its page text.
 
-== Sources evaluated and rejected for the full 76-item list
+=== Sources evaluated and rejected for the full 76-item list (superseded by Part B)
 
 * `sorunokoe/TRIZ-Skills`, file `standards.md` (MIT licence) -- structured
   as an AI-agent skill reference document rather than a transcription of an
@@ -89,18 +96,169 @@ host site's own copyright notice on its page text.
 * Sub-class assignments (which of the 76 solutions falls under which of the
   finer sub-groups within a class, e.g. "1.1" vs "1.2") diverge between the
   few available sources and were not independently reconciled -- a further
-  reason not to bundle below the 5-class granularity.
+  reason not to bundle below the 5-class granularity at the time this
+  section was originally written. Part B below documents the source that
+  superseded this gap.
 
-== Invitation
+== Part B: the 76 individual standard solutions
 
-If a trustworthy primary source for the full 76-item list becomes
-available -- a licensed digitisation of an Altshuller/Terninko-era standards
-appendix, or a verifiably faithful transcription with a checkable
-provenance chain -- please open an issue or PR. kTRIZ will add the 76
-individual solutions once such a source exists, not before.
+=== Source used
+
+A 5-part TRIZ Journal article series, "The Seventy-Six Standard Solutions,
+with Examples," by John Terninko, Ellen Domb & Joe Miller, published
+February-July 2000, one article per class:
+
+[cols="1,4,1"]
+|===
+| Class | Retrieved from | Count found
+
+| 1
+| https://the-trizjournal.com/seventy-six-standard-solutions-examples-section-one/[the-trizjournal.com] (live) -- byline "On 26, Feb 2000"
+| 13
+
+| 2
+| https://web.archive.org/web/20010219165224/http://www.triz-journal.com/archives/2000/03/d/index.htm[Wayback Machine capture of triz-journal.com, March 2000 archive slot]
+| 23
+
+| 3
+| https://web.archive.org/web/20010418080851/http://www.triz-journal.com/archives/2000/05/b/index.htm[Wayback Machine capture, May 2000 archive slot]
+| 6
+
+| 4
+| https://web.archive.org/web/20001215050900/http://www.triz-journal.com/archives/2000/06/e/index.htm[Wayback Machine capture, June 2000 archive slot]
+| 17
+
+| 5
+| https://web.archive.org/web/20001209024400/http://triz-journal.com/archives/2000/07/b/index.htm[Wayback Machine capture, July 2000 archive slot]
+| 17
+|===
+
+Total: 76, matching the 13/23/6/17/17 split independently corroborated by
+Part A's wiki.matriz.org source. Every one of the 5 articles' own preface
+restates this same 13/23/6/17/17 table, identically, across all 5 -- a fifth
+independent, internal corroboration of the split.
+
+=== Deviation from the originally-given URLs
+
+The task's starting URLs used the pattern
+`.../seventy-six-standard-solutions-examples-section-<word>/` for all 5
+classes. Only section one (Class 1) resolves on the live site today (verified
+2026-09-02); sections two through five all return HTTP 404, and the site's own
+`/2000/` monthly archive listing confirms only Class 1 survived whatever
+migration moved `triz-journal.com`'s original FrontPage-authored site onto its
+current WordPress installation. Classes 2-5 were instead retrieved from the
+Internet Archive Wayback Machine's captures of the *original*
+`triz-journal.com` site (not a third-party mirror such as metodolog.ru) --
+located by walking that original site's own `/archives/2000/<month>/index.htm`
+listings and matching each article's `<title>` tag to "...Class N". This is
+treated as at least as strong a source as the live WordPress pages: same
+original publisher, contemporaneous capture, no intermediate transcription.
+
+=== Public domain / authorial-voice statements (verbatim)
+
+Immediately following the byline of the Class 1 article: "Yes, this is all
+public domain in the spirit of Altshuller."
+
+From the Class 5 article: "In the spirit of Altshuller, we want to make these
+interpretations available to all who are studying and using TRIZ." (emphasis
+on "interpretations" -- see <<caveats>>.)
+
+=== Encoding note
+
+The 2000-era pages declare no charset and are Windows-1252
+(curly quotes/apostrophes/em-dashes decode incorrectly as UTF-8 or Latin-1).
+The live Class 1 WordPress page declares UTF-8 but has visibly
+double-mis-encoded punctuation from an import step (`â€œ`/`â€`/`â€™`-style
+mojibake). Both were corrected deterministically before transcription
+(`cp1252` re-decode for the archived pages; a `cp1252`-encode /
+`utf-8`-decode round-trip for the WordPress mojibake) and spot-checked against
+the "public domain" sentence and several apostrophed words. No wording was
+otherwise altered.
+
+[#numbering-anomaly]
+=== Known anomaly: `5.1.1`'s nested sub-numbering
+
+Under heading "5.1. Introducing Substances," sub-heading "5.1.1. Indirect
+ways" is followed by nine further numbered items, `5.1.1.1` through
+`5.1.1.9` -- the only place in the entire 76-item series where the numbering
+goes to a fourth level (every other item is exactly `x.y.z`, three levels).
+Counting `5.1.1.1`-`5.1.1.9` as nine separate solutions would put Class 5 at
+25 items and the grand total at 84, not 76.
+
+kTRIZ's `StandardSolution.ofCode("5.1.1")` treats `5.1.1` as **one** classical
+solution, with `5.1.1.1`-`5.1.1.9` folded into its `labelEn` as the source's
+own nine-way enumeration of techniques within that one solution. Basis for
+this reading: (a) every one of the 5 articles' own preface table states Class
+5 = 17, not 25 or 26, in all 5 places; (b) the independently-sourced
+wiki.matriz.org split (Part A) corroborates 17 for Class 5; (c) no other
+solution in the series uses a fourth numbering level, so treating this one as
+an in-source enumeration rather than a genuine fifth solution-group is the
+reading consistent with the rest of the document's own structure. This is
+flagged, not asserted with full confidence -- if a second complete source
+becomes available, this specific item is the first one to cross-check.
+
+`StandardSolution.INDIRECT_SUBSTANCE_INTRODUCTION`'s `labelEn` is therefore
+not a verbatim single sentence like the other 75 entries: it is a
+semicolon-joined compression of the source's own nine `5.1.1.x` opening
+clauses (the source's own literal heading text, "Indirect ways," was judged
+too terse alone to be useful as a label). This is the one item in the set
+where an editorial compression, rather than a straight transcription, was
+made.
+
+[#caveats]
+=== Caveats -- what this source is not
+
+* **Single authorial voice, not a multi-source reconciliation.** Unlike
+  `contradiction-matrix-1971.csv` (Part A's sibling document,
+  `docs/matrix-provenance.adoc`), which reconciles four independent
+  transcriptions by majority vote, this is one article series by one team of
+  three authors. No second complete source was cross-checked for the 76-item
+  list itself (Part A's rejected candidates -- `sorunokoe/TRIZ-Skills` and
+  `Antropocosmist/triz-engineering-solver` -- corroborate the 5-class *split*
+  only, and remain rejected for the item-level list for the reasons already
+  recorded in Part A).
+* **The authors call this their own "interpretation," not a verbatim
+  Altshuller translation** -- see the Class 5 quote above. Terninko, Domb &
+  Miller compiled and phrased this list themselves from Altshuller-era
+  primary sources (their own reference list cites "Golden Classics of TRIZ,"
+  Altshuller's "Creativity as an Exact Science," specific Soviet inventor's
+  certificates, etc.) rather than presenting a direct translation of a single
+  canonical Altshuller document.
+* **Sub-class numbering has not been cross-verified against a second complete
+  source.** Part A already noted this as a reason the old, coarser
+  5-class-only bundling avoided finer granularity; that caution is not fully
+  retired by adding this one (strong, but singular) source.
+* This is a stronger source than either of Part A's rejected candidates (see
+  Part A: neither an AI-agent-skill document nor a 67/76-incomplete list), and
+  it pre-dates the LLM era entirely (published 2000), which the rejected
+  candidates could not claim -- but "stronger than two rejected candidates"
+  is not the same claim as "independently reconciled," and this record does
+  not overstate it as such.
+
+[#no-suggestion-function]
+=== No `SuField`/`SuFieldQuality`-to-`StandardSolution` bridge function
+
+Echoing and extending `StandardSolutionClass`'s existing KDoc: kTRIZ provides
+no `suggestStandardSolution(suField: SuField): StandardSolution` (or
+`List<StandardSolution>`) function, and no narrower
+`StandardSolutionClass`-to-`StandardSolution`-subset convenience beyond plain
+`StandardSolution.entries.filter { it.standardClass == someClass }`. At
+5-class granularity the literature's own correspondence to `SuFieldQuality`
+is already "loose" and undocumented as a 1:1 mapping (Part A); at 76-item
+granularity the source itself resolves which specific solution applies to a
+situation through ARIZ-style worked-example pattern matching and human
+judgment, not a formula over `SuField`/`SuFieldQuality` state. A
+type-system-enforced bridge here would present uncertain domain knowledge as
+false precision -- exactly the failure mode Typed Domain Grounding exists to
+prevent.
 
 == Sources cited
 
 * https://wiki.matriz.org/knowledge-base/triz/problem-solving-tools-5890/substance-field-modeling/standard-inventive-solutions/[MATRIZ wiki -- Standard Inventive Solutions (SIS)]
 * https://github.com/sorunokoe/TRIZ-Skills[sorunokoe/TRIZ-Skills] (rejected for item-level list)
 * https://github.com/Antropocosmist/triz-engineering-solver[Antropocosmist/triz-engineering-solver] (rejected for item-level list)
+* https://the-trizjournal.com/seventy-six-standard-solutions-examples-section-one/[The TRIZ Journal -- The Seventy-six Standard Solutions, with Examples, Section One]
+* https://web.archive.org/web/20010219165224/http://www.triz-journal.com/archives/2000/03/d/index.htm[Wayback Machine -- Class 2, March 2000]
+* https://web.archive.org/web/20010418080851/http://www.triz-journal.com/archives/2000/05/b/index.htm[Wayback Machine -- Class 3, May 2000]
+* https://web.archive.org/web/20001215050900/http://www.triz-journal.com/archives/2000/06/e/index.htm[Wayback Machine -- Class 4, June 2000]
+* https://web.archive.org/web/20001209024400/http://triz-journal.com/archives/2000/07/b/index.htm[Wayback Machine -- Class 5, July 2000]
