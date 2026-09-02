@@ -3,10 +3,19 @@ package dev.ktriz.sufield
 /**
  * The six classical Su-Field field types (Altshuller's substance-field analysis).
  *
- * [id] is the canonical 1..6 index; [labelEn]/[labelDe] are carried for rendering, exactly
- * following the [dev.ktriz.core.EngineeringParameter] pattern: existence of a field type is
- * a compiler-enforced guarantee (Typed Domain Grounding), not a runtime check -- an LLM that
- * invents a field type simply fails to compile.
+ * [id] is the canonical 1..6 index; [labelEn]/[labelDe]/[abbreviation] are carried for
+ * rendering, exactly following the [dev.ktriz.core.EngineeringParameter] pattern: existence of
+ * a field type is a compiler-enforced guarantee (Typed Domain Grounding), not a runtime check
+ * -- an LLM that invents a field type simply fails to compile.
+ *
+ * [abbreviation] is the classical subscript used in the printed Su-Field notation: the full
+ * symbol is `"F" + abbreviation` (`FMec`, `FTh`, `FCh`, `FEl`, `FM`, `FGr`), per the legend
+ * table (fig. 1.1.1.a) of *Systematic Innovation*, "4 Su-Field Analysis and Standard
+ * Solutions" (`innovazionesistematica.it/wp-content/uploads/2020/10/EN_04.pdf`, citing *A
+ * Thread in the Labyrinth*, Petrozavodsk: Karelia, 1988, ISBN 5-7545-0020-3). That source is
+ * internally inconsistent on casing elsewhere (`Fmec` in one of its own worked-example
+ * figures vs. `FMec` in its own legend table) -- the legend table is treated as normative here,
+ * hence `FMec` rather than `Fmec`.
  *
  * `enum` and not a `sealed` hierarchy, for the same reason as
  * [dev.ktriz.core.EngineeringParameter]: a closed set, fully known at compile time, with no
@@ -26,36 +35,43 @@ enum class FieldType(
     val id: Int,
     val labelEn: String,
     val labelDe: String,
+    val abbreviation: String,
 ) {
     MECHANICAL(
         id = 1,
         labelEn = "Mechanical",
         labelDe = "Mechanisch",
+        abbreviation = "Mec",
     ),
     THERMAL(
         id = 2,
         labelEn = "Thermal",
         labelDe = "Thermisch",
+        abbreviation = "Th",
     ),
     CHEMICAL(
         id = 3,
         labelEn = "Chemical",
         labelDe = "Chemisch",
+        abbreviation = "Ch",
     ),
     ELECTRIC(
         id = 4,
         labelEn = "Electric",
         labelDe = "Elektrisch",
+        abbreviation = "El",
     ),
     MAGNETIC(
         id = 5,
         labelEn = "Magnetic",
         labelDe = "Magnetisch",
+        abbreviation = "M",
     ),
     GRAVITATIONAL(
         id = 6,
         labelEn = "Gravitational",
         labelDe = "Gravitativ",
+        abbreviation = "Gr",
     ),
     ;
 

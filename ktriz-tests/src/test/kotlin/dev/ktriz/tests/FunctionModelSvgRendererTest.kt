@@ -268,6 +268,27 @@ class FunctionModelSvgRendererTest :
             titles.single().textContent shouldBe longName
         }
 
+        "an extremely long component name's title tooltip is capped at 512 chars with an ellipsis" {
+            // Regression guard for renderNode's <title> tag switching from
+            // xmlEscapeText(nodeId.value) to xmlEscapeText(titleTextFor(nodeId.value)) -- the
+            // test above uses a 66-char name, far under MAX_MEASURED_CHARS (512), so it never
+            // exercises titleTextFor's own cap; a >512-char name does. Confirmed live: reverting
+            // this call site to the old xmlEscapeText(nodeId.value) still leaves the full suite
+            // green except this one test. Same pattern already covering the Su-Field renderer's
+            // titleTextFor wiring, see SuFieldSvgRendererTest.kt's "a long S1 name truncates with
+            // an ellipsis, carries a bounded title...".
+            val longName = "X".repeat(600)
+            val fm = functionModel { component(longName) }
+
+            val doc = parseSvg(fm.renderSvg())
+            val titles = doc.elementsByTag("title")
+
+            titles shouldHaveSize 1
+            val title = titles.single().textContent
+            (title.length <= 513) shouldBe true
+            title.endsWith("…") shouldBe true
+        }
+
         "a single-character component name is clamped to the minimum node width" {
             val fm = functionModel { component("X") }
 

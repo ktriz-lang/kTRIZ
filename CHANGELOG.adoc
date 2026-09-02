@@ -4,6 +4,33 @@ All notable changes to kTRIZ are documented here. The project is pre-1.0
 and the API is unstable -- breaking changes may happen in any release
 without a deprecation period.
 
+== Unreleased
+
+=== Substance-field models
+
+* `SuField.renderSvg()` (module `ktriz-render-kuml`) renders a `suField { }`
+  model to a standalone SVG document: the classical S1-S2-Field triangle,
+  F at the apex, S1 bottom-left, S2 bottom-right, action reading
+  right-to-left from S2 into S1. Unlike `FunctionModel.renderSvg()`, this
+  path never invokes kUML's ELK layout engine -- the triangle's geometry is
+  fixed and deterministic, confirmed against two independent primary
+  sources on classical Su-Field notation. `SuFieldQuality` reuses
+  `FunctionQuality`'s existing stroke vocabulary (solid/dashed/doubled/wavy)
+  rather than inventing a second one, per MATRIZ's own statement that
+  Su-Field interaction symbols mirror function-modeling symbols; an
+  `INCOMPLETE` triangle draws no base line at all. `FieldType` gained a
+  fourth field, `abbreviation`, carrying the classical subscript (`Mec`,
+  `Th`, `Ch`, `El`, `M`, `Gr`) used in the printed `F`-symbol notation.
+* `ktriz-script`'s default imports now also include `dev.ktriz.sufield.*`,
+  so `suField { }` (and `SuField.renderSvg()`, via the existing
+  `dev.ktriz.render.kuml.*` default import) are callable from a
+  `.ktriz.kts` script with no explicit import, matching `functionModel { }`.
+* Hardened `xmlEscapeText` (module `ktriz-render-kuml`) to strip characters
+  XML 1.0 forbids outright (control characters, unpaired surrogates) before
+  escaping -- closes a latent defect shared by both SVG renderers where a
+  component/substance name containing such a character produced an
+  unparseable document.
+
 == v0.1.0 -- 2026-09-02
 
 First tagged snapshot. Everything below already exists on `master` before

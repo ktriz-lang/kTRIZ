@@ -81,19 +81,26 @@ internal data class DisplayText(
     val truncated: Boolean,
 )
 
-/** [name] truncated with an ellipsis if it overflows the available inner width [innerWidthPx]. */
+/**
+ * [name] truncated with an ellipsis if it overflows the available inner width [innerWidthPx],
+ * measured via [measure] -- defaults to [measuredTextWidthPx] (node-name font size), so every
+ * existing call site keeps its exact prior behaviour byte-for-byte. `SuFieldSvgRenderer.kt`
+ * passes [measuredEdgeLabelWidthPx] for the Su-Field field-name label, which renders at the
+ * smaller edge-label font size, not the node-name font size this default assumes.
+ */
 internal fun displayTextFor(
     name: String,
     innerWidthPx: Float,
+    measure: (String) -> Float = ::measuredTextWidthPx,
 ): DisplayText {
-    if (measuredTextWidthPx(name) <= innerWidthPx) return DisplayText(name, truncated = false)
+    if (measure(name) <= innerWidthPx) return DisplayText(name, truncated = false)
     var lo = 0
     var hi = min(name.length, MAX_MEASURED_CHARS)
     // Largest prefix + "…" that still fits (binary search instead of a linear shrink for long names).
     while (lo < hi) {
         val mid = (lo + hi + 1) / 2
         val candidate = name.take(mid) + "…"
-        if (measuredTextWidthPx(candidate) <= innerWidthPx) lo = mid else hi = mid - 1
+        if (measure(candidate) <= innerWidthPx) lo = mid else hi = mid - 1
     }
     val fitted = if (lo == 0) "…" else name.take(lo) + "…"
     return DisplayText(fitted, truncated = true)

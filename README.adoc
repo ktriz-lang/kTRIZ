@@ -63,16 +63,18 @@ What works today:
   validation as tools over stdio, for LLM agents (see <<mcp>>).
 * A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`,
   `KtrizScriptHost.eval`/`evalSource`) that compiles and runs a script with
-  `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.render.kuml.*` in scope
-  by default (the last of which makes `FunctionModel.renderSvg()` callable
-  directly from a script, no import needed), mapping every outcome -- success,
-  compile error, runtime error -- into a structured `KtrizScriptOutcome` with
-  a stable `KTRIZ-S-xxx` code, never a raw exception or stack trace. Exposed
-  on the command line as `ktriz run` (see <<scripting>>).
+  `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.sufield.*`/
+  `dev.ktriz.render.kuml.*` in scope by default (the last of which makes
+  `FunctionModel.renderSvg()`/`SuField.renderSvg()` callable directly from a
+  script, no import needed), mapping every outcome -- success, compile error,
+  runtime error -- into a structured `KtrizScriptOutcome` with a stable
+  `KTRIZ-S-xxx` code, never a raw exception or stack trace. Exposed on the
+  command line as `ktriz run` (see <<scripting>>).
 * `suField { }` -- a small DSL for TRIZ substance-field analysis: an object
   substance S1, an optional second substance S2 acted on through an optional
-  `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>).
-* 266 Kotest test cases covering the above.
+  `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>), with
+  SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>).
+* 304 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
@@ -230,11 +232,12 @@ combination throws `IllegalArgumentException` with a message naming both the
 declared quality and which slot is missing or unexpectedly present.
 
 NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
-and `StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
-solutions -- see below). The 76 individual solution texts themselves, a
-lookup engine keyed on `SuFieldQuality`/`FieldType`, SVG rendering of the
-S1-S2-Field triangle, and an MCP tool are explicitly out of scope here and
-left to later waves (see kTRIZ-ADR-0001 and
+`StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
+solutions -- see below), and SVG rendering of the S1-S2-Field triangle (see
+<<su-field-svg>>). The 76 individual solution texts themselves and a lookup
+engine keyed on `SuFieldQuality`/`FieldType`, plus an MCP tool for Su-Field,
+are explicitly out of scope here and left to later waves (see kTRIZ-ADR-0001
+and
 link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]).
 
 `StandardSolutionClass` carries the 5-class structure only -- id, English/
@@ -254,6 +257,61 @@ Expected output:
 ----
 Building and destruction of Su-Fields (13 solutions)
 ----
+
+[#su-field-svg]
+== Rendering a substance-field model
+
+The `ktriz-render-kuml` module also renders any `suField { }` to a
+standalone SVG document -- the classical S1-S2-Field triangle, F at the
+apex, S1 bottom-left, S2 bottom-right:
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.FieldType.MECHANICAL
+import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
+import dev.ktriz.sufield.suField
+import dev.ktriz.render.kuml.renderSvg
+
+val sf = suField {
+    val workpiece = component("Workpiece")
+    val tool = component("Grinding wheel")
+    s1(workpiece)
+    s2(tool)
+    field(MECHANICAL)
+    quality(INSUFFICIENT)
+}
+
+File("su-field.svg").writeText(sf.renderSvg())
+----
+
+Unlike `FunctionModel.renderSvg()`, this renderer never calls kUML's ELK
+layout engine -- there is nothing to lay out. The triangle's geometry is
+fixed and deterministic (F at the apex, S1 bottom-left, S2 bottom-right,
+action reading right-to-left from S2 into S1), confirmed against two
+independent primary sources on classical Su-Field notation (MATRIZ's wiki
+and the worked figures in *Systematic Innovation*, "4 Su-Field Analysis and
+Standard Solutions", citing *A Thread in the Labyrinth*, Petrozavodsk:
+Karelia, 1988). An engine that ever placed the three vertices differently
+would be wrong, not merely suboptimal, so a layout engine has nothing to
+contribute here.
+
+`SuFieldQuality` maps to the same stroke vocabulary `FunctionQuality`
+already uses (MATRIZ: "Symbols of interactions used in Su-Field models are
+similar to those used in function modeling for devices"): `COMPLETE` a
+plain solid line, `INSUFFICIENT` dashed, `EXCESSIVE` two parallel lines,
+`HARMFUL` a sine-perturbed wavy path, and `INCOMPLETE` -- a structurally
+incomplete triangle -- draws no base line at all, because there is nothing
+to judge. The F-S1 and F-S2 legs are always a single plain solid line
+regardless of quality; they carry no judgement of their own and never get
+an arrowhead. S1/S2 render as small circles labelled `S1`/`S2` with the
+substance's name outside the circle; F renders as a circle with the field's
+classical symbol (e.g. `F` with a `Mec` subscript for
+`FieldType.MECHANICAL`) and the field's full name above it. A vertex that
+is absent (an incomplete triangle missing S2 and/or the field) is simply
+not drawn -- no placeholder shape is invented for it.
+
+Field/vertex labels are English-only in V1 (`FieldType.labelEn`, not
+`labelDe`).
 
 [#the-compiler-as-oracle]
 == The compiler as oracle
@@ -338,9 +396,11 @@ $ ktriz run hello-world.ktriz.kts --output json
 
 === Rendering an SVG from a script
 
-`ktriz-script` depends on `ktriz-render-kuml` (see <<function-model-svg>>),
-and `dev.ktriz.render.kuml.*` is a default import, so
-`FunctionModel.renderSvg()` is callable from a script with no import at all:
+`ktriz-script` depends on `ktriz-render-kuml` (see <<function-model-svg>>
+and <<su-field-svg>>), and `dev.ktriz.render.kuml.*` is a default import, so
+both `FunctionModel.renderSvg()` and `SuField.renderSvg()` are callable from
+a script with no import at all -- and, since `dev.ktriz.sufield.*` is also a
+default import, `suField { }` itself needs no import either:
 
 `ktriz run`'s runtime classpath now also carries kUML's ELK-based layout
 engine (`kuml-layout-api`/`kuml-layout-elk`, pulling in ELK/EMF/Guava --
@@ -644,7 +704,7 @@ matrix, with no server-side session state to manage or leak.
 | Command-line entry point. `ktriz mcp` (see <<mcp>>); `ktriz run <script.ktriz.kts> [--output json]` (see <<scripting>>); `ktriz help`.
 
 | `ktriz-render-kuml`
-| Renders `functionModel { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` (layout only, no kUML metamodel/rendering dependency).
+| Renders `functionModel { }` and `suField { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` for the function-model path (layout only, no kUML metamodel/rendering dependency); the Su-Field path uses only kUML's plain geometry types (`Point`/`Rect`/`Size`), never the layout engine itself -- see <<su-field-svg>>.
 
 | `ktriz-mcp`
 | MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` only -- no `ktriz-render-kuml`; also reachable via `ktriz mcp` in `ktriz-cli` (see <<mcp>>).
@@ -676,9 +736,13 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
   <<su-field>>. Standard solution classes -- *done* (5-class structure
   only), see link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc];
   the 76 individual solutions remain a deliberately deferred future item
-  pending a trustworthy primary source. A lookup engine over the 76
-  individual solutions, SVG rendering of the S1-S2-Field triangle, and an
-  MCP tool for Su-Field are still explicitly later waves (kTRIZ-ADR-0001).
+  pending a trustworthy primary source. SVG rendering of the S1-S2-Field
+  triangle -- *done*, see <<su-field-svg>>: fixed, deterministic geometry
+  (no kUML layout engine involved -- the classical triangle has nothing to
+  lay out), reusing `FunctionQuality`'s stroke vocabulary for
+  `SuFieldQuality` per MATRIZ's own "similar symbols" statement. A lookup
+  engine over the 76 individual solutions and an MCP tool for Su-Field are
+  still explicitly later waves (kTRIZ-ADR-0001).
 
 == Licence
 

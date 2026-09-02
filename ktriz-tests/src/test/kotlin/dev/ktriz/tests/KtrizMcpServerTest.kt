@@ -12,6 +12,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.testing.ChannelTransport
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.asSink
@@ -119,6 +120,16 @@ class KtrizMcpServerTest :
             val client = Client(clientInfo = Implementation(name = "runsession-test-client", version = "test"))
             withTimeout(10_000L) {
                 val sessionJob = launch { runSession(server, serverTransport) }
+                // `launch` only schedules `runSession` -- it does not guarantee
+                // `server.createSession(serverTransport)` (see KtrizMcpServer.kt) has actually run
+                // before we proceed. Without waiting here, a client request can race ahead of the
+                // server-side session wiring and get back a "Transport is not ready" protocol error
+                // instead of a real response, under scheduling pressure (observed live under CPU
+                // load). This poll is pure test synchronization -- it does not change what the
+                // production `runSession` code considers authoritative for session lifecycle (see
+                // its doc comment on why post-hoc `server.sessions` checks are unsound *there*); it
+                // only delays this test's own client from connecting until a session is visible.
+                while (server.sessions.isEmpty()) delay(1)
                 client.connect(clientTransport)
                 client.listTools() // a real request/response over the session before closing it
                 client.close()

@@ -13,8 +13,9 @@ import kotlin.script.experimental.jvm.jvm
  * The [defaultImports] make `dev.ktriz.core.*` (`EngineeringParameter`, `InventivePrinciple`,
  * `Contradiction`, `contradiction()`, `ContradictionMatrix`, `Contradiction.resolve()`),
  * `dev.ktriz.function.*` (`functionModel { }`, `FunctionModel`, `Component`, `FunctionEdge`,
- * `FunctionQuality`), and `dev.ktriz.render.kuml.*` (`FunctionModel.renderSvg()`) available
- * without explicit imports.
+ * `FunctionQuality`), `dev.ktriz.sufield.*` (`suField { }`, `SuField`, `FieldType`,
+ * `SuFieldQuality`, `StandardSolutionClass`), and `dev.ktriz.render.kuml.*`
+ * (`FunctionModel.renderSvg()`, `SuField.renderSvg()`) available without explicit imports.
  *
  * Minimal script example:
  * ```kotlin
@@ -68,9 +69,14 @@ object KtrizScriptCompilationConfiguration : ScriptCompilationConfiguration({
         // functionModel { }, FunctionModel, FunctionModelBuilder, Component,
         // FunctionEdge, FunctionQuality
         "dev.ktriz.function.*",
-        // FunctionModel.renderSvg() -- an extension function, so it needs this import to
-        // resolve inside a script even though ktriz-render-kuml is already on the classpath
-        // (see this object's KDoc above).
+        // suField { }, SuField, SuFieldBuilder, FieldType, SuFieldQuality,
+        // StandardSolutionClass -- verified collision-free against dev.ktriz.core.* and
+        // dev.ktriz.function.*. Without this, suField { } would be the only DSL entry point in
+        // the project that a script could not call unqualified.
+        "dev.ktriz.sufield.*",
+        // FunctionModel.renderSvg() / SuField.renderSvg() -- extension functions, so they need
+        // this import to resolve inside a script even though ktriz-render-kuml is already on
+        // the classpath (see this object's KDoc above).
         "dev.ktriz.render.kuml.*",
     )
 })

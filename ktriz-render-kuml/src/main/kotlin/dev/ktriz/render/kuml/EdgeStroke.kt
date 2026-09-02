@@ -1,6 +1,7 @@
 package dev.ktriz.render.kuml
 
 import dev.ktriz.function.FunctionQuality
+import dev.ktriz.sufield.SuFieldQuality
 
 /** `stroke-dasharray` for [EdgeStrokeStyle.DASHED] -- 8px dash, 4px gap. */
 internal const val DASH_ARRAY = "8 4"
@@ -42,4 +43,28 @@ internal fun FunctionQuality.strokeStyle(): EdgeStrokeStyle =
         FunctionQuality.INSUFFICIENT -> EdgeStrokeStyle.DASHED
         FunctionQuality.EXCESSIVE -> EdgeStrokeStyle.DOUBLED
         FunctionQuality.HARMFUL -> EdgeStrokeStyle.WAVY
+    }
+
+/**
+ * The same visual vocabulary as [FunctionQuality.strokeStyle], reused rather than
+ * reinvented -- MATRIZ: "Symbols of interactions used in Su-Field models are similar to
+ * those used in function modeling for devices."
+ * (`wiki.matriz.org/docs/triz/problem-solving-tools-5890/substance-field-modeling/standard-inventive-solutions/substance-field-model/`).
+ * `COMPLETE` behaves like [FunctionQuality.USEFUL] -> [EdgeStrokeStyle.SOLID];
+ * `INSUFFICIENT` -> [EdgeStrokeStyle.DASHED]; `EXCESSIVE` -> [EdgeStrokeStyle.DOUBLED];
+ * `HARMFUL` -> [EdgeStrokeStyle.WAVY]; `INCOMPLETE` -> `null`, because an incomplete
+ * triangle has no base line to style in the first place (no `s2`, no `field`, or neither).
+ *
+ * Known conflicting convention: part of the literature reads a wavy line on a Su-Field
+ * triangle as a *dynamic* Su-Field, not a harmful one. kTRIZ deliberately rejects that
+ * reading -- it contradicts the MATRIZ statement above, and wavy = harmful already ships in
+ * `functionModel { }`. One mark, one meaning inside one product.
+ */
+internal fun SuFieldQuality.strokeStyle(): EdgeStrokeStyle? =
+    when (this) {
+        SuFieldQuality.COMPLETE -> EdgeStrokeStyle.SOLID
+        SuFieldQuality.INSUFFICIENT -> EdgeStrokeStyle.DASHED
+        SuFieldQuality.EXCESSIVE -> EdgeStrokeStyle.DOUBLED
+        SuFieldQuality.HARMFUL -> EdgeStrokeStyle.WAVY
+        SuFieldQuality.INCOMPLETE -> null
     }

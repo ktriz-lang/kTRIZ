@@ -10,10 +10,6 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.elk.ElkLayoutEngine
 
-private const val STROKE_WIDTH_PX = 2f
-private const val NODE_STROKE_COLOR = "#000000"
-private const val NODE_FILL_COLOR = "#ffffff"
-private const val EDGE_STROKE_COLOR = "#333333"
 private const val EMPTY_CANVAS_WIDTH_PX = 200f
 private const val EMPTY_CANVAS_HEIGHT_PX = 120f
 
@@ -117,13 +113,6 @@ private fun FunctionModel.canvasBoundsFor(
     val offsetY = -minY
     return CanvasBounds(width = maxX + offsetX, height = maxY + offsetY, offsetX = offsetX, offsetY = offsetY)
 }
-
-private data class CanvasBounds(
-    val width: Float,
-    val height: Float,
-    val offsetX: Float,
-    val offsetY: Float,
-)
 
 /**
  * [bases]: for every edge, the finished *base* geometry its stroke style and arrowhead are
@@ -260,7 +249,7 @@ private fun renderNode(
     val cy = bounds.origin.y + bounds.size.height / 2
     val innerWidth = bounds.size.width - 2 * NODE_PAD_X_PX
     val display = displayTextFor(nodeId.value, innerWidth)
-    val titleTag = if (display.truncated) "<title>${xmlEscapeText(nodeId.value)}</title>" else ""
+    val titleTag = if (display.truncated) "<title>${xmlEscapeText(titleTextFor(nodeId.value))}</title>" else ""
     return """
         |<rect x="${bounds.origin.x}" y="${bounds.origin.y}" width="${bounds.size.width}" height="${bounds.size.height}" fill="$NODE_FILL_COLOR" stroke="$NODE_STROKE_COLOR" stroke-width="$STROKE_WIDTH_PX"/>
         |<text x="$cx" y="$cy" text-anchor="middle" dominant-baseline="middle" font-family="$NODE_FONT_FAMILY" font-size="$NODE_FONT_SIZE_PX">$titleTag${xmlEscapeText(
@@ -306,14 +295,3 @@ private fun renderEdge(
         )}</text>"""
     return pathTags + arrowTag + label
 }
-
-private fun svgDocument(
-    width: Float,
-    height: Float,
-    body: String,
-): String =
-    """<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 $width $height" width="$width" height="$height">
-$body
-</svg>
-"""

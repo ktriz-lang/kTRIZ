@@ -72,4 +72,24 @@ class FieldTypeTest :
                 .toSet()
                 .size shouldBe 6
         }
+
+        "every entry carries a non-blank abbreviation" {
+            FieldType.entries.forAll { it.abbreviation.shouldNotBeBlank() }
+        }
+
+        "abbreviations are unique across all six entries" {
+            FieldType.entries
+                .map { it.abbreviation }
+                .toSet()
+                .size shouldBe 6
+        }
+
+        "abbreviations exactly match the classical legend table (fig. 1.1.1.a)" {
+            MECHANICAL.abbreviation shouldBe "Mec"
+            THERMAL.abbreviation shouldBe "Th"
+            CHEMICAL.abbreviation shouldBe "Ch"
+            ELECTRIC.abbreviation shouldBe "El"
+            MAGNETIC.abbreviation shouldBe "M"
+            GRAVITATIONAL.abbreviation shouldBe "Gr"
+        }
     })
