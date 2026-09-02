@@ -221,6 +221,183 @@ can separately attract an EU sui generis database right regardless of the
 facts' own status). See kTRIZ-ADR-0003 for the legal position this record
 does not settle.
 
+== Sui generis database right -- deepened risk analysis (2026-09-02)
+
+NOTE: This section is an informational risk analysis, not legal advice.
+Neither the author nor any AI assistant that helped compile it is
+authorised to give legal advice, and this section does not close the
+open review-pending position kTRIZ-ADR-0003 already records ("a check
+still to perform, not a settled matter" in the ADR's own words) -- it
+narrows and better-informs that open question, nothing more. A qualified
+IP lawyer's review remains the only way to actually resolve it, and
+remains outstanding before any funded/published release.
+
+=== The doctrine
+
+Directive 96/9/EC ("Database Directive"), Article 7(1): the sui generis
+right protects a database maker who shows *"qualitatively and/or
+quantitatively a substantial investment in either the obtaining,
+verification or presentation of the contents"* -- three disjunctive
+categories, any one sufficient if substantial. Article 1(2) defines
+"database" broadly enough that the matrix (a grid of independently
+retrievable `(improving, worsening) -> principle-id list` cells)
+plausibly qualifies as one without much room for argument either way.
+Recital 41: the "maker" is whoever takes the initiative and risk of the
+investment, not a mere subcontractor or user.
+
+The load-bearing case law is the CJEU's British Horseracing Board v
+William Hill (C-203/02, 9 Nov 2004) and the companion Fixtures Marketing
+judgments decided the same day (C-444/02 and others). Their central
+holding, quoted here after independently re-verifying the cited
+paragraph against the EUR-Lex judgment text (not merely relying on a
+secondary paraphrase): investment in *"obtaining"* means resources used
+*"to seek out existing independent materials and collect them in the
+database"* -- and explicitly does **not** cover *"resources used for the
+creation as such of independent materials"* (BHB, para. 31). Fixtures
+Marketing applied the identical logic to football-fixture scheduling,
+holding that deciding who plays whom, when, is "creation," not
+"obtaining," and so a fixture list -- though a "database" under Article
+1(2) -- got no sui generis protection on those facts.
+
+=== Applied to this repository's specific situation (reasoning, not a verdict)
+
+Three separate layers, each analysed on its own facts rather than
+assumed to inherit the others' answer:
+
+1. **Altshuller's original matrix-derivation** (1970s-80s patent-corpus
+analysis distilling recurring improving/worsening-parameter to
+principle correlations) reads, on balance, closer to the "creation"
+side of the BHB/Fixtures Marketing line than the "obtaining" side --
+closer to scheduling a fixture list (synthesising a genuinely new
+correlation) than to recording horse-race results (registering
+already-decided facts). This is a real but contestable characterisation
+-- no court has ruled on TRIZ-matrix-derivation specifically, and a
+differently argued case could plausibly go the other way.
+
+2. **The four transcription sources this repository reconciled**
+(`ANT`, `SOR`, `FFS`, `XLS` -- see "Sources" above) each appear, on
+their own documented content, to have re-typed/reformatted an
+already-published matrix into a new digital container, without
+independently-verifiable fact-checking or correction beyond format
+conversion -- indeed this reconciliation's own findings (the cell 19x9
+duplicate-principle anomaly, the two transposed example cells corrected
+above) are evidence *against* rigorous independent verification having
+already happened in any single source, not evidence for it. Multiple
+secondary legal-commentary sources describe "mere conversion of analog
+material to digital format" as likely insufficient to meet the
+"substantial investment" bar on its own, distinguishing it from
+conversion accompanied by independent verification/correction/updating.
+If that reading holds for any given one of the four sources, that
+source's own transcription may not carry a sui generis right for kTRIZ
+to have infringed in the first place -- but this cannot be confirmed
+from outside those projects; it depends on facts about their actual
+compilation process that are not independently knowable here.
+
+3. **This repository's own reconciliation process** -- independently
+retrieving four sources, comparing 1248 cells against each other,
+applying a majority-vote rule, identifying and hand-resolving the 19x9
+anomaly and the two transposition errors, cross-checking axis
+orientation -- reads, on its face, closer to genuine "verification"
+activity (checking, correcting, reconciling disagreements between
+independent renderings) than to a bare reformatting pass. If point 2's
+reading is correct for the underlying sources, this reconciliation
+would be better framed as kTRIZ potentially *acquiring its own*
+freestanding sui generis right in the compiled result, rather than
+needing a defence against someone else's right -- a materially more
+comfortable position than ADR-0003's original framing assumed. But this
+chain depends entirely on point 2 holding, which is not confirmed; if a
+court instead found one of the four sources' own transcription work
+substantial, this reconciliation's explicit act of comparing against
+and drawing on that source's cell values would look like extraction of
+a "substantial part" of that source's database within Article 7,
+regardless of how much independent verification was layered on top.
+Two of the four sources (`ANT`, `SOR`) are MIT-licensed, which would
+likely also license any such right for at least some purposes -- but
+MIT's licence text is copyright-shaped ("permission... to deal in the
+Software... including... the rights to use, copy, modify... and to
+permit persons to whom the Software is furnished to do so") and whether
+that operationally extends to a separate EU sui generis database right
+is itself an unresolved textual question, not researched further here.
+
+=== Jurisdictional scope
+
+The sui generis database right is an EU (and, separately since Brexit,
+UK) creature, not a global one -- the US has no equivalent regime and
+relies solely on ordinary copyright's originality requirement (Feist
+Publications v. Rural Telephone Service Co., 499 U.S. 340 (1991)), which
+does not protect a bare factual table lacking original selection or
+arrangement. A realistic claim would have to be brought by an EU (or
+UK) "maker" in an EU member state's (or UK) courts under that
+jurisdiction's implementation of the Directive -- kTRIZ being
+distributable globally via GitHub/Maven Central does not by itself
+create exposure in every jurisdiction that happens to be able to
+download it.
+
+=== Comparable precedents -- one reassuring, one cautionary
+
+**OpenStreetMap** relicensed from CC BY-SA to the Open Database Licence
+(ODbL) in 2012 specifically because ODbL is purpose-drafted around
+database-specific legal concepts (database / contents / "derivative
+database" / "produced work", and an explicit sui generis clause) that
+CC licences were not built to address -- reflecting the same underlying
+structure as this repository's situation (facts arguably not
+independently copyrightable; a collective effort of gathering and
+verifying them into a structured whole is the thing plausibly
+protected). A detailed, lawyer-authored Article-7 substantial-investment
+memo specifically for OSM's own database was not located; the
+relicensing decision and its general rationale are well documented via
+secondary sources (OSM wiki, contemporaneous reporting), the underlying
+legal reasoning less so.
+
+**Open Power System Data (OPSD)**, a project aggregating electricity-
+system data from 100+ sources, is a more cautionary and arguably more
+directly on-point counter-example: a German BMWi-commissioned legal
+study reportedly found much of the aggregated data likely separately
+sui-generis-protected by each individual source's own "maker"
+investment, forcing OPSD into a patchwork licensing position requiring
+per-source rightsholder agreement rather than a clean "the whole
+compilation is now safely open" outcome. This weighs against assuming
+this repository's four sources' transcription work was automatically
+too thin to be protected (point 2 above) -- real legal assessments have
+gone the other way, source by source, and an outside analysis cannot
+assume that question away.
+
+=== What this analysis does not, and cannot, resolve
+
+- Whether Altshuller's matrix-derivation is "creation" or "obtaining" in
+  the BHB/Fixtures Marketing sense (point 1) is a contestable
+  characterisation, not a settled fact -- no court has ruled on this
+  specific question.
+- Whether any of the four transcription sources' own work cleared the
+  "substantial investment" threshold (point 2) is unknowable from
+  outside those projects -- it depends on compilation-process facts
+  (independent verification effort, if any) that are not documented by
+  the sources themselves.
+- Whether MIT's licence text operationally extends to a sui generis
+  database right, if one exists in `ANT`/`SOR`, is an unresolved
+  interpretive question, not researched in depth here.
+- No primary CJEU or national judgment addressing facts closely
+  analogous to "four independent parties separately re-transcribe an
+  already-published table, and a fifth party reconciles them by
+  majority vote" was located -- BHB, Fixtures Marketing, and the OPSD/
+  OSM precedents above are structurally adjacent, not squarely on
+  point.
+
+None of the above converts kTRIZ-ADR-0003's "Prüf-, keine
+Erledigt-Position" into a closed question. It remains open, and a
+qualified IP lawyer's review is still the only way to actually resolve
+it before a funded/published release.
+
+=== Sources for this section
+
+* https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:31996L0009[Directive 96/9/EC, consolidated text, EUR-Lex]
+* https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:62002CJ0203[British Horseracing Board Ltd v William Hill Organization Ltd, C-203/02, EUR-Lex] -- paragraph 31 independently re-verified against this page
+* https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:62002CJ0444[Fixtures Marketing Ltd v OPAP, C-444/02, EUR-Lex]
+* https://www.iusmentis.com/databases/crashcourse/requirements/[iusmentis.com, "Crash course on database rights"] (secondary commentary)
+* https://en.wikipedia.org/wiki/Feist_Publications,_Inc._v._Rural_Telephone_Service_Co.[Feist Publications v. Rural Telephone Service Co., 499 U.S. 340 (1991)]
+* https://wiki.openstreetmap.org/wiki/Open_Database_License_Relicensing_FAQ[OpenStreetMap wiki, ODbL relicensing FAQ]
+* https://lwn.net/Articles/422493/[LWN.net, "OpenStreetMap's point of no return"]
+
 == Explicitly not used
 
 At no point in this reconciliation was Matrix 2003, Matrix 2010, or Matrix
