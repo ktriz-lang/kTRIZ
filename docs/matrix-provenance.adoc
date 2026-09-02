@@ -10,6 +10,72 @@ implements, and `NOTICE` for the short attribution summary.
 
 Retrieved and reconciled: 2026-09-02.
 
+== What "1971" refers to
+
+NOTE: This section documents TRIZ historical background, not a new data
+source -- it does not change any bundled cell value. Assembled from
+secondary TRIZ-history sources (below), not independently verified against
+a primary 1971 document, which does not appear to survive as a standalone,
+separately publishable/purchasable artifact (see the negative finding
+below).
+
+The filename's "1971" traces to **ARIZ-71**, a specific 1971 version of
+Altshuller's "Algorithm for the Solution of Inventive Problems." Per
+multiple independently-consulted TRIZ-history sources (a TRIZ-history
+overview hosted by AITRIZ, "Inside TRIZ"; a TRIZ-history PDF at xtriz.com,
+"A Brief History of TRIZ"), ARIZ-71 is where the Contradiction Table -- the
+39x39 grid of engineering-parameter-pairs to recommended principles that is
+the basis of this file -- was first brought to completion, with the
+principle count reaching 40. This is consistent with the generic
+"classical 1971/1985 Altshuller table" phrasing this record and
+kTRIZ-ADR-0003 already used before this note existed, but narrows it to a
+specific named milestone rather than a vague era.
+
+=== Negative finding: Altshuller's own "Creativity as an Exact Science" (1979/1984) does not contain it
+
+As part of the sui generis risk-mitigation effort above (looking for a
+source closer to Altshuller himself than the four online transcriptions),
+a legitimately purchased copy of the 1984 Gordon and Breach English
+translation of Altshuller's own "Creativity as an Exact Science" (itself a
+translation of the 1979 Russian "Творчество как точная наука") was checked
+page by page, including its own index -- **the matrix does not appear in
+this book**, confirmed by the book's own index carrying no "matrix" entry
+at all. This is a real, useful negative result, not a failed search: it is
+consistent with the ARIZ-71-vs-later-work explanation below, and rules this
+specific edition out as a corroborating source for the matrix (it may
+still be relevant to other kTRIZ data, e.g. its Appendix 2, "Typical
+Models of Inventive Problems and their S-Field Transformations," touches
+the Su-Field/standard-solutions domain rather than the contradiction
+matrix -- not pursued further here, out of this section's scope).
+
+The book itself explains why: its own Appendix 1 is titled "Algorithm for
+the Solution of Inventive Problems ASIP-77" -- a *later* refinement than
+ARIZ-71, consistent with the book documenting Altshuller's post-matrix-era
+methodology rather than the 1971 matrix-centric version.
+
+=== A further historical note, honestly surfaced rather than omitted
+
+Independently corroborated across two separate secondary sources (the
+AITRIZ "Inside TRIZ" overview and a ScienceDirect topics summary on
+Altshuller): by the mid-1980s Altshuller himself moved away from
+recommending the Contradiction Matrix, regarding it as an insufficient
+tool for eliminating randomness from contradiction-solving, and advised
+using ARIZ instead in his later work. This does not change kTRIZ's own
+data-provenance or licensing position on the matrix (that rests on the
+"Public domain basis" and "Sui generis database right" sections above, not
+on whether Altshuller personally still endorsed the tool decades later),
+and it does not change the matrix's continued, overwhelmingly dominant use
+in TRIZ practice and pedagogy today independent of Altshuller's own later
+view -- but it is a real, citable piece of TRIZ history that a reader of
+this record deserves to know rather than have silently omitted, given
+kTRIZ ships the classical matrix as a headline feature.
+
+=== Sources for this section
+
+* https://www.aitriz.org/triz-articles/inside-triz[AITRIZ, "Inside TRIZ"]
+* http://xtriz.com/BriefHistoryOfTRIZ.pdf[xtriz.com, "A Brief History of TRIZ"]
+* https://www.sciencedirect.com/topics/engineering/altshuller[ScienceDirect Topics, "Altshuller -- an overview"]
+
 == Sources
 
 Four independent transcriptions of the classical matrix were retrieved and
