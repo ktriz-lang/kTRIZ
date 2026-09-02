@@ -4,7 +4,7 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 6). The
+WARNING: kTRIZ is in very early, pre-release development (M2, wave 1). The
 core contradiction spine, the function model and SVG rendering for the
 function model exist, the contradiction matrix is fully populated with the
 classical 39x39 table (1248 cells, see <<matrix>>), an MCP server exposes
@@ -69,7 +69,10 @@ What works today:
   compile error, runtime error -- into a structured `KtrizScriptOutcome` with
   a stable `KTRIZ-S-xxx` code, never a raw exception or stack trace. Exposed
   on the command line as `ktriz run` (see <<scripting>>).
-* 237 Kotest test cases covering the above.
+* `suField { }` -- a small DSL for TRIZ substance-field analysis: an object
+  substance S1, an optional second substance S2 acted on through an optional
+  `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>).
+* 266 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
@@ -182,6 +185,54 @@ hardcoded line styles and no generic node/edge diagram entry point a
 `INSUFFICIENT` as a dashed stroke, `EXCESSIVE` as two parallel lines (the
 engineering-drawing convention for an over-strong connection), and `HARMFUL`
 as a sine-perturbed wavy path.
+
+[#su-field]
+== Substance-field models (Su-Field)
+
+A third small DSL, `suField { }`, models TRIZ substance-field analysis: an
+object substance S1, optionally acted on by a second substance S2 through a
+field, judged overall by one of five qualities.
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.FieldType.MECHANICAL
+import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
+import dev.ktriz.sufield.suField
+
+val sf = suField {
+    val workpiece = component("Workpiece")
+    val tool = component("Grinding wheel")
+    s1(workpiece)
+    s2(tool)
+    field(MECHANICAL)
+    quality(INSUFFICIENT)
+}
+
+println("${sf.s1.name} -[${sf.field}]-> ${sf.s2?.name} (${sf.quality})")
+----
+
+Expected output:
+
+----
+Workpiece -[MECHANICAL]-> Grinding wheel (INSUFFICIENT)
+----
+
+`s2` and `field` are nullable on purpose -- classical Su-Field analysis often
+starts from an incomplete triangle (just S1, nothing else identified yet) and
+treats "what to add" as the analytical question. A `SuField`'s `init` block
+enforces one consistency rule between `quality` and that nullability:
+`SuFieldQuality.INCOMPLETE` requires the triangle to actually be
+incomplete -- at least one of `s2`/`field` must be `null` -- while every other
+quality (`COMPLETE`, `INSUFFICIENT`, `EXCESSIVE`, `HARMFUL`) requires both to
+be set, because judging an effect's strength or harmfulness presupposes a
+structurally complete triangle to judge in the first place. A malformed
+combination throws `IllegalArgumentException` with a message naming both the
+declared quality and which slot is missing or unexpectedly present.
+
+NOTE: This wave ships the core `SuField` data model and `suField { }` DSL
+only. The 76 standard solutions (as a lookup keyed on `SuFieldQuality` and
+`FieldType`), SVG rendering of the S1-S2-Field triangle, and an MCP tool are
+explicitly out of scope here and left to later waves (see kTRIZ-ADR-0001).
 
 [#the-compiler-as-oracle]
 == The compiler as oracle
@@ -563,7 +614,7 @@ matrix, with no server-side session state to manage or leak.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
 
 | `ktriz-script`
 | The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
@@ -600,6 +651,10 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
 * Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset, `BOW_SPACING_PX = 9` px between adjacent edges' offsets clamped to `BOW_MAX_OFFSET_PX = +/-27` px, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking `+8` px per additional self-loop on the same node up to `SELF_LOOP_STACK_MAX_PX = 44` px) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are also vertically staggered (alternating above/below the route's midpoint) so they don't render on top of each other -- a known remaining limitation: for a component pair with many edges and long verbs, the staggered labels can still overlap a neighbouring node's box or each other, since this is a fixed-step stagger, not full collision-avoidance layout.
+* Substance-field models (Su-Field) -- *done* (core model + DSL), see
+  <<su-field>>. The 76 standard solutions as a lookup, SVG rendering of the
+  S1-S2-Field triangle, and an MCP tool are explicitly later waves
+  (kTRIZ-ADR-0001).
 
 == Licence
 

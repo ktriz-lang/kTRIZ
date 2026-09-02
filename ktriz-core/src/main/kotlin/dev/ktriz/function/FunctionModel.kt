@@ -1,5 +1,7 @@
 package dev.ktriz.function
 
+import dev.ktriz.dsl.KtrizDsl
+
 /**
  * Scoped builder behind the [functionModel] DSL entry point. Not meant to be constructed
  * directly -- use [functionModel].
