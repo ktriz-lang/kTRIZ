@@ -1,9 +1,11 @@
 package dev.ktriz.cli
 
+import dev.ktriz.mcp.runStdioServer
 import dev.ktriz.script.KtrizScriptHost
 import dev.ktriz.script.KtrizScriptOutcome
 import dev.ktriz.script.KtrizScriptOutcomeCodes
 import io.github.oshai.kotlinlogging.KotlinLoggingConfiguration
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -23,6 +25,7 @@ const val USAGE_TEXT: String =
     """kTRIZ CLI
 
 Usage:
+  ktriz mcp                                      Start the kTRIZ MCP server over stdio
   ktriz run <script.ktriz.kts> [--output json]   Compile and run a *.ktriz.kts script
   ktriz help                                     Show this message
 
@@ -32,6 +35,8 @@ you would a build.gradle.kts.
 """
 
 sealed interface CliCommand {
+    data object StartMcpServer : CliCommand
+
     data class Run(
         val scriptPath: String,
         val jsonOutput: Boolean,
@@ -49,6 +54,7 @@ sealed interface CliCommand {
 fun resolveCommand(args: Array<String>): CliCommand =
     when {
         args.isEmpty() -> CliCommand.ShowUsage(exitCode = 0)
+        args.size == 1 && args[0] == "mcp" -> CliCommand.StartMcpServer
         args.size == 1 && (args[0] == "help" || args[0] == "--help") -> CliCommand.ShowUsage(exitCode = 0)
         args[0] == "run" -> resolveRunCommand(args.drop(1))
         else -> CliCommand.ShowUsage(exitCode = 1)
@@ -90,9 +96,14 @@ fun main(args: Array<String>) {
     // own `--output json` document uses, breaking "exactly one JSON document on stdout" for a
     // machine consumer (caught by running `ktriz run ... --output json` for real during this
     // wave's verification, not by a unit test -- CliMainTest never invokes main() itself, see
-    // its own KDoc). Must be set before anything can log, so it's the first line of main().
+    // its own KDoc). Must be set before anything can log, so it's the first line of main() --
+    // and, from this wave on, must also hold before the `mcp` subcommand's own first log call
+    // inside ktriz-mcp -- that path shares this same guard by running through the same main()
+    // entry point before dispatch, for the same reason: the MCP subcommand speaks JSON-RPC on
+    // stdout, and a banner line ahead of the protocol stream would corrupt it for any client.
     KotlinLoggingConfiguration.logStartupMessage = false
     when (val command = resolveCommand(args)) {
+        CliCommand.StartMcpServer -> runBlocking { runStdioServer() }
         is CliCommand.Run -> runScript(command)
         is CliCommand.ShowUsage -> {
             // Success path (`ktriz help`, exitCode 0) is what the user explicitly asked to see

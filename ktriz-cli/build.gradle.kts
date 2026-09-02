@@ -23,6 +23,13 @@ application {
 }
 
 dependencies {
+    // `ktriz mcp`: startet den bestehenden ktriz-mcp-Server ueber stdio. ktriz-mcp deklariert
+    // dies als `implementation`, nicht `api` -- auf ktriz-cli's eigenem Compile-Classpath daher
+    // nicht transitiv sichtbar. Main.kt ruft runBlocking { runStdioServer() } direkt auf, braucht
+    // also kotlinx-coroutines-core auch hier explizit (analog kSTEPs kstep-cli).
+    implementation(project(":ktriz-mcp"))
+    implementation(libs.kotlinx.coroutines.core)
+
     // `ktriz run` (M1 Welle 6): KtrizScriptHost/KtrizScriptOutcome. Zieht
     // kotlin-compiler-embeddable transitiv auf diesen runtimeClasspath (und damit in
     // installDists lib/) -- erwartet, kein Regress; siehe ktriz-scripts KDoc.

@@ -9,8 +9,8 @@ core contradiction spine, the function model and SVG rendering for the
 function model exist, the contradiction matrix is fully populated with the
 classical 39x39 table (1248 cells, see <<matrix>>), an MCP server exposes
 it all to LLM agents (see <<mcp>>), and a `*.ktriz.kts` scripting host is
-usable via `ktriz run` (see <<scripting>>). `ktriz run` exists; no `ktriz mcp`
-subcommand yet, and no published artifact. The API is unstable.
+usable via `ktriz run` (see <<scripting>>). `ktriz run` and `ktriz mcp` both
+exist; no published artifact. The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -62,11 +62,10 @@ What works today:
   outcome -- success, compile error, runtime error -- into a structured
   `KtrizScriptOutcome` with a stable `KTRIZ-S-xxx` code, never a raw exception
   or stack trace. Exposed on the command line as `ktriz run` (see <<scripting>>).
-* 193 Kotest test cases covering the above.
+* 196 Kotest test cases covering the above.
 
-What does not exist yet: a CLI subcommand wiring `ktriz-mcp` into `ktriz-cli`
-(`ktriz mcp`), and a way to call `FunctionModel.renderSvg()` from inside a
-script. See <<roadmap>>.
+What does not exist yet: a way to call `FunctionModel.renderSvg()` from
+inside a script. See <<roadmap>>.
 
 [#hello-world]
 == Hello World
@@ -219,11 +218,11 @@ executable -- build the CLI's install image explicitly, then run it directly:
 
 Note the install directory is named `ktriz`, not `ktriz-cli`
 (`ktriz-cli/build/install/*ktriz*/bin/ktriz`) -- `ktriz-cli/build.gradle.kts`
-sets `applicationName = "ktriz"` explicitly so the binary and its `ktriz run`/
-`ktriz help` subcommands read naturally, so this does *not* follow the
-`<module>/build/install/<module>/bin/<module>` pattern <<mcp,`ktriz-mcp`
-below>> uses. The `$ ktriz ...` examples below assume that binary is on your
-`PATH` (e.g. via a symlink).
+sets `applicationName = "ktriz"` explicitly so the binary and its `ktriz mcp`/
+`ktriz run`/`ktriz help` subcommands read naturally, so this does *not*
+follow the `<module>/build/install/<module>/bin/<module>` pattern
+<<mcp,`ktriz-mcp` below>> uses. The `$ ktriz ...` examples below assume that
+binary is on your `PATH` (e.g. via a symlink).
 
 [source,kotlin]
 ----
@@ -375,6 +374,22 @@ own console output shares stdout with the JSON-RPC stream the server speaks,
 so a client reading that stream sees corrupted output. Always launch the
 `installDist` binary directly.
 
+Alternatively, once `ktriz-cli` is installed (see <<hello-world>>), the same
+server is reachable as a subcommand of the main `ktriz` binary:
+
+[source,shell]
+----
+./gradlew clean :ktriz-cli:installDist
+./ktriz-cli/build/install/ktriz/bin/ktriz mcp
+----
+
+Both entry points run the identical `buildServer()`/`runStdioServer()` code
+in `ktriz-mcp` -- `ktriz mcp` is a thin wrapper, not a second implementation.
+Client configuration below shows the standalone binary; point `command` at
+the `ktriz-cli` binary instead (`.../ktriz-cli/build/install/ktriz/bin/ktriz`)
+with `"args": ["mcp"]` if you prefer a single installed executable for both
+`ktriz run` and `ktriz mcp`.
+
 === Client configuration
 
 A generic `mcpServers` entry, pointing at the `installDist` binary:
@@ -463,13 +478,13 @@ matrix, with no server-side session state to manage or leak.
 | The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
 
 | `ktriz-cli`
-| Command-line entry point. `ktriz run <script.ktriz.kts> [--output json]` (see <<scripting>>); `ktriz help`. No `ktriz mcp` subcommand yet.
+| Command-line entry point. `ktriz mcp` (see <<mcp>>); `ktriz run <script.ktriz.kts> [--output json]` (see <<scripting>>); `ktriz help`.
 
 | `ktriz-render-kuml`
 | Renders `functionModel { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` (layout only, no kUML metamodel/rendering dependency).
 
 | `ktriz-mcp`
-| MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` only -- no `ktriz-render-kuml`, no `ktriz-cli` wiring yet (see <<mcp>> and <<roadmap>>).
+| MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` only -- no `ktriz-render-kuml`; also reachable via `ktriz mcp` in `ktriz-cli` (see <<mcp>>).
 
 | `ktriz-tests`
 | Kotest test suite for `ktriz-core`, `ktriz-script`, `ktriz-render-kuml`, `ktriz-mcp`, and `ktriz-cli`.
@@ -490,9 +505,9 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 
 * Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is partially done: `ContradictionMatrixData.parse(...)` exists as a public parsing entry point, but there is no discovery/configuration mechanism yet to swap `ContradictionMatrix`'s own data source at runtime.
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
-* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio. Not yet done: wiring it into `ktriz-cli` as a `ktriz mcp` subcommand (kSTEP's `kstep-mcp` follows the same "server module first, CLI subcommand later" order).
+* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
-* Real CLI commands -- `ktriz run` is *done* (see <<scripting>>). Not yet done: a `ktriz mcp` subcommand wiring `ktriz-mcp` into `ktriz-cli` (see the MCP-server bullet above), and a way to call `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script (deliberately left out of this wave's scope -- would need `ktriz-render-kuml`, which pulls in ELK, on the script compile classpath).
+* Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Not yet done: a way to call `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script (deliberately left out of this wave's scope -- would need `ktriz-render-kuml`, which pulls in ELK, on the script compile classpath).
 * `FunctionModel.renderSvg()` follow-ups, explicitly out of scope for V1: real font-metrics-based node sizing instead of the fixed 140x60 px box; arrowheads on edges; visual separation for multiple edges between the same component pair; a dedicated fixed-radius loop arc for self-loops instead of relying on whatever ELK's `elk.layered` self-loop strategy produces.
 
 == Licence

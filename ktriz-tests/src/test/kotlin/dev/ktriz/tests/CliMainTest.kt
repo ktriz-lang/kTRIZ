@@ -25,6 +25,14 @@ class CliMainTest :
             resolveCommand(emptyArray()) shouldBe CliCommand.ShowUsage(0)
         }
 
+        "the \"mcp\" argument resolves to StartMcpServer" {
+            resolveCommand(arrayOf("mcp")) shouldBe CliCommand.StartMcpServer
+        }
+
+        "\"mcp\" with a trailing extra argument is rejected, not silently accepted" {
+            resolveCommand(arrayOf("mcp", "extra")) shouldBe CliCommand.ShowUsage(1)
+        }
+
         "the \"help\" argument resolves to ShowUsage with exit code 0" {
             resolveCommand(arrayOf("help")) shouldBe CliCommand.ShowUsage(0)
         }
@@ -91,6 +99,10 @@ class CliMainTest :
 
         "a single empty-string argument does not throw and resolves to ShowUsage with exit code 1" {
             resolveCommand(arrayOf("")) shouldBe CliCommand.ShowUsage(1)
+        }
+
+        "USAGE_TEXT documents the mcp subcommand" {
+            USAGE_TEXT shouldContain "ktriz mcp"
         }
 
         "USAGE_TEXT documents the run subcommand" {
