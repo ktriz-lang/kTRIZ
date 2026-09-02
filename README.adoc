@@ -63,14 +63,13 @@ What works today:
   validation as tools over stdio, for LLM agents (see <<mcp>>).
 * A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`,
   `KtrizScriptHost.eval`/`evalSource`) that compiles and runs a script with
-  `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope by default, mapping every
-  outcome -- success, compile error, runtime error -- into a structured
-  `KtrizScriptOutcome` with a stable `KTRIZ-S-xxx` code, never a raw exception
-  or stack trace. Exposed on the command line as `ktriz run` (see <<scripting>>).
-* 216 Kotest test cases covering the above.
-
-What does not exist yet: a way to call `FunctionModel.renderSvg()` from
-inside a script. See <<roadmap>>.
+  `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.render.kuml.*` in scope
+  by default (the last of which makes `FunctionModel.renderSvg()` callable
+  directly from a script, no import needed), mapping every outcome -- success,
+  compile error, runtime error -- into a structured `KtrizScriptOutcome` with
+  a stable `KTRIZ-S-xxx` code, never a raw exception or stack trace. Exposed
+  on the command line as `ktriz run` (see <<scripting>>).
+* 237 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
@@ -264,6 +263,54 @@ field, rather than mixing it into the surrounding JSON:
 $ ktriz run hello-world.ktriz.kts --output json
 {"status":"success","returnType":null,"stdout":"Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓\nEmpfohlene erfinderische Prinzipien:\n  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)\n  #27  Billige Kurzlebigkeit  (Cheap short-living objects)\n  #18  Mechanische Schwingungen  (Mechanical vibration)\n  #40  Verbundwerkstoffe  (Composite materials)\n"}
 ----
+
+=== Rendering an SVG from a script
+
+`ktriz-script` depends on `ktriz-render-kuml` (see <<function-model-svg>>),
+and `dev.ktriz.render.kuml.*` is a default import, so
+`FunctionModel.renderSvg()` is callable from a script with no import at all:
+
+`ktriz run`'s runtime classpath now also carries kUML's ELK-based layout
+engine (`kuml-layout-api`/`kuml-layout-elk`, pulling in ELK/EMF/Guava --
+~15 additional jars). Measured impact:
+`ktriz-cli/build/install/ktriz/lib` grows from 73M to 82M, and
+`ktriz run hello-world.ktriz.kts` wall-clock time is statistically
+indistinguishable before/after (~1.7-2.0s either way, dominated by JVM/Kotlin
+scripting-engine startup, not by classpath size) -- three local runs each,
+Linux, warm OS file cache.
+
+[source,kotlin]
+----
+// function-model-svg.ktriz.kts
+val fm =
+    functionModel {
+        val engine = component("Engine")
+        val coolant = component("Coolant")
+        useful(from = coolant, to = engine, verb = "cools")
+    }
+
+val svg = fm.renderSvg()
+println(svg)
+svg
+----
+
+[source,shell]
+----
+$ ktriz run function-model-svg.ktriz.kts
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ..." width="..." height="...">
+<path d="..." fill="none" stroke="#333333" stroke-width="2.0"/><polygon points="..." fill="#333333"/><text x="..." y="..." text-anchor="middle" font-family="..." font-size="...">cools</text><rect x="..." y="..." width="..." height="..." fill="#ffffff" stroke="#000000" stroke-width="2.0"/><text x="..." y="..." text-anchor="middle" dominant-baseline="middle" font-family="..." font-size="...">Engine</text>
+...
+</svg>
+----
+
+Note the script's last expression (`svg`) is also its return value, so
+`--output json`'s `returnType` field reports `kotlin.String` here -- unlike
+the `hello-world.ktriz.kts` example above, whose last statement is a `val`
+declaration and whose `returnType` is therefore `null`. `returnValue` itself
+is never serialized into the JSON output (only `status`/`returnType`/`stdout`
+are, see the table below) -- the full SVG document is available in the
+`"stdout"` field, exactly as with the text-mode run above.
 
 The `STRUCTURAL_INTEGRITY` case from <<the-compiler-as-oracle,above>> is the
 concrete generate-compile-repair signal: a `worsening = ... STRUCTURAL_INTEGRITY`
@@ -551,7 +598,7 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
 * MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
-* Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Not yet done: a way to call `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script (deliberately left out of this wave's scope -- would need `ktriz-render-kuml`, which pulls in ELK, on the script compile classpath).
+* Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset, `BOW_SPACING_PX = 9` px between adjacent edges' offsets clamped to `BOW_MAX_OFFSET_PX = +/-27` px, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking `+8` px per additional self-loop on the same node up to `SELF_LOOP_STACK_MAX_PX = 44` px) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are also vertically staggered (alternating above/below the route's midpoint) so they don't render on top of each other -- a known remaining limitation: for a component pair with many edges and long verbs, the staggered labels can still overlap a neighbouring node's box or each other, since this is a fixed-step stagger, not full collision-avoidance layout.
 
 == Licence

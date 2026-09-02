@@ -113,6 +113,16 @@ class KtrizScriptHostTest :
             outcome.returnValue.shouldBeInstanceOf<FunctionModel>()
         }
 
+        "dev.ktriz.render.kuml.* is a default import -- FunctionModel.renderSvg() needs no explicit import" {
+            val outcome =
+                KtrizScriptHost.evalSource(
+                    """functionModel { val a = component("A"); val b = component("B"); useful(a, b, "acts") }.renderSvg()""",
+                )
+            outcome.shouldBeInstanceOf<KtrizScriptOutcome.Success>()
+            outcome.returnValue.shouldBeInstanceOf<String>()
+            (outcome.returnValue as String) shouldContain "<svg"
+        }
+
         // ---- stdout capture -------------------------------------------------------------------
 
         "captureStdout = true captures the script's println output instead of the real stdout" {

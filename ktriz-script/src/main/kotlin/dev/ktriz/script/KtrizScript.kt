@@ -11,9 +11,10 @@ import kotlin.script.experimental.jvm.jvm
  *
  * Files with the extension `*.ktriz.kts` are compiled and evaluated using this definition.
  * The [defaultImports] make `dev.ktriz.core.*` (`EngineeringParameter`, `InventivePrinciple`,
- * `Contradiction`, `contradiction()`, `ContradictionMatrix`, `Contradiction.resolve()`) and
+ * `Contradiction`, `contradiction()`, `ContradictionMatrix`, `Contradiction.resolve()`),
  * `dev.ktriz.function.*` (`functionModel { }`, `FunctionModel`, `Component`, `FunctionEdge`,
- * `FunctionQuality`) available without explicit imports.
+ * `FunctionQuality`), and `dev.ktriz.render.kuml.*` (`FunctionModel.renderSvg()`) available
+ * without explicit imports.
  *
  * Minimal script example:
  * ```kotlin
@@ -49,6 +50,12 @@ abstract class KtrizScript
  * the calling JVM (which includes `ktriz-core` and this module) is available inside scripts
  * without explicit dependency declarations. This is the *trusted, in-process* path only -- see
  * [KtrizScriptHost]'s KDoc for why no curated/sandboxed classpath is used here.
+ *
+ * Since `ktriz-script` now declares `api(project(":ktriz-render-kuml"))` (see
+ * `ktriz-script/build.gradle.kts`), that module -- and its transitive dependencies
+ * `kuml-layout-api`/`kuml-layout-elk` (which pull in ELK, EMF, and Guava; ~15 additional jars)
+ * -- also ride along on `wholeClasspath`, so `FunctionModel.renderSvg()` is callable from a
+ * script the same way `EngineeringParameter`/`functionModel { }` already were.
  */
 object KtrizScriptCompilationConfiguration : ScriptCompilationConfiguration({
     jvm {
@@ -61,5 +68,9 @@ object KtrizScriptCompilationConfiguration : ScriptCompilationConfiguration({
         // functionModel { }, FunctionModel, FunctionModelBuilder, Component,
         // FunctionEdge, FunctionQuality
         "dev.ktriz.function.*",
+        // FunctionModel.renderSvg() -- an extension function, so it needs this import to
+        // resolve inside a script even though ktriz-render-kuml is already on the classpath
+        // (see this object's KDoc above).
+        "dev.ktriz.render.kuml.*",
     )
 })
