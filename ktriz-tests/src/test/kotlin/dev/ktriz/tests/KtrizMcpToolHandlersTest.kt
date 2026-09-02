@@ -4,9 +4,15 @@ import dev.ktriz.core.EngineeringParameter
 import dev.ktriz.core.InventivePrinciple
 import dev.ktriz.mcp.tools.MAX_NAME_LENGTH
 import dev.ktriz.mcp.tools.buildFunctionModelHandler
+import dev.ktriz.mcp.tools.buildSuFieldHandler
 import dev.ktriz.mcp.tools.listEngineeringParametersHandler
+import dev.ktriz.mcp.tools.listFieldTypesHandler
 import dev.ktriz.mcp.tools.listInventivePrinciplesHandler
+import dev.ktriz.mcp.tools.listStandardSolutionClassesHandler
 import dev.ktriz.mcp.tools.resolveContradictionHandler
+import dev.ktriz.sufield.FieldType
+import dev.ktriz.sufield.StandardSolutionClass
+import dev.ktriz.sufield.SuFieldQuality
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -596,6 +602,219 @@ class KtrizMcpToolHandlersTest :
             val componentNames =
                 result.structured()["components"]!!.jsonArray.map { it.jsonObject["name"]!!.jsonPrimitive.content }
             componentNames shouldContainExactly listOf("Bearing")
+        }
+
+        // -- build_su_field: happy path ------------------------------------------------------
+
+        "build_su_field with only s1 and quality=INCOMPLETE builds an incomplete triangle" {
+            val result = buildSuFieldHandler(args("s1" to "Workpiece", "quality" to "INCOMPLETE"))
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["s1"]!!.jsonObject["name"]!!.jsonPrimitive.content shouldBe "Workpiece"
+            structured["s2"] shouldBe JsonNull
+            structured["fieldType"] shouldBe JsonNull
+            structured["quality"]!!.jsonPrimitive.content shouldBe "INCOMPLETE"
+            val kotlin = structured["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "suField {"
+            kotlin shouldContain "s1(component("
+            kotlin shouldContain "quality(SuFieldQuality.INCOMPLETE)"
+            kotlin shouldNotContain "s2("
+            kotlin shouldNotContain "field("
+        }
+
+        "build_su_field with s1 and s2 but no fieldType is a valid incomplete triangle" {
+            val result =
+                buildSuFieldHandler(
+                    args("s1" to "Workpiece", "s2" to "Grinding wheel", "quality" to "INCOMPLETE"),
+                )
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["s2"]!!.jsonObject["name"]!!.jsonPrimitive.content shouldBe "Grinding wheel"
+            structured["fieldType"] shouldBe JsonNull
+            val kotlin = structured["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "s2(component(\"Grinding wheel\"))"
+            kotlin shouldNotContain "field("
+        }
+
+        "build_su_field with a full complete triangle sets all four fields" {
+            val result =
+                buildSuFieldHandler(
+                    args(
+                        "s1" to "Workpiece",
+                        "s2" to "Grinding wheel",
+                        "fieldType" to "MECHANICAL",
+                        "quality" to "COMPLETE",
+                    ),
+                )
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["s1"]!!.jsonObject["name"]!!.jsonPrimitive.content shouldBe "Workpiece"
+            structured["s2"]!!.jsonObject["name"]!!.jsonPrimitive.content shouldBe "Grinding wheel"
+            structured["fieldType"]!!.jsonObject["symbol"]!!.jsonPrimitive.content shouldBe "MECHANICAL"
+            structured["quality"]!!.jsonPrimitive.content shouldBe "COMPLETE"
+            val kotlin = structured["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "field(FieldType.MECHANICAL)"
+            kotlin shouldContain "quality(SuFieldQuality.COMPLETE)"
+        }
+
+        "build_su_field's fieldType and quality are case-insensitive" {
+            val result =
+                buildSuFieldHandler(
+                    args(
+                        "s1" to "Workpiece",
+                        "s2" to "Grinding wheel",
+                        "fieldType" to "mechanical",
+                        "quality" to "complete",
+                    ),
+                )
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["fieldType"]!!.jsonObject["symbol"]!!.jsonPrimitive.content shouldBe "MECHANICAL"
+            structured["quality"]!!.jsonPrimitive.content shouldBe "COMPLETE"
+        }
+
+        "build_su_field's kotlin field escapes a dollar sign in s1, like build_function_model's does" {
+            val result = buildSuFieldHandler(args("s1" to "Cost \$total", "quality" to "INCOMPLETE"))
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "component(\"Cost \\\$total\")"
+            kotlin shouldNotContain "component(\"Cost \$total\")"
+        }
+
+        // -- build_su_field: error paths ------------------------------------------------------
+
+        "build_su_field rejects a missing s1" {
+            val result = buildSuFieldHandler(args("quality" to "INCOMPLETE"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            text shouldContain "s1"
+        }
+
+        "build_su_field rejects a missing quality" {
+            val result = buildSuFieldHandler(args("s1" to "Workpiece"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            text shouldContain "quality"
+        }
+
+        "build_su_field rejects a blank s1" {
+            val result = buildSuFieldHandler(args("s1" to "   ", "quality" to "INCOMPLETE"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+        }
+
+        "build_su_field rejects an s1 over MAX_NAME_LENGTH without echoing it back" {
+            val tooLong = "x".repeat(MAX_NAME_LENGTH + 1)
+            val result = buildSuFieldHandler(args("s1" to tooLong, "quality" to "INCOMPLETE"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            text shouldNotContain tooLong
+        }
+
+        "build_su_field rejects an unknown fieldType, listing all valid values" {
+            val result =
+                buildSuFieldHandler(
+                    args("s1" to "Workpiece", "fieldType" to "ACOUSTIC", "quality" to "COMPLETE"),
+                )
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            FieldType.entries.forAll { text shouldContain it.name }
+        }
+
+        "build_su_field rejects an unknown quality, listing all valid values" {
+            val result = buildSuFieldHandler(args("s1" to "Workpiece", "quality" to "PERFECT"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            SuFieldQuality.entries.forAll { text shouldContain it.name }
+        }
+
+        "build_su_field rejects every wrong JSON shape for s1, never throwing" {
+            val badS1Values: List<Any?> =
+                listOf(1, true, buildJsonArray { add(1) }, buildJsonObject { put("x", 1) })
+            badS1Values.forAll { badS1 ->
+                val callArgs = args("s1" to badS1, "quality" to "INCOMPLETE")
+                val result = buildSuFieldHandler(callArgs)
+                result.isError shouldBe true
+                result.errorKind() shouldBe "malformed_input"
+            }
+        }
+
+        "build_su_field rejects quality=COMPLETE without s2/fieldType as a self_contradiction" {
+            val result = buildSuFieldHandler(args("s1" to "Workpiece", "quality" to "COMPLETE"))
+            result.isError shouldBe true
+            result.errorKind() shouldBe "self_contradiction"
+            val text = (result.content.first() as TextContent).text
+            text shouldContain "structurally complete triangle"
+        }
+
+        "build_su_field rejects quality=INCOMPLETE with both s2 and fieldType set as a self_contradiction" {
+            val result =
+                buildSuFieldHandler(
+                    args(
+                        "s1" to "Workpiece",
+                        "s2" to "Grinding wheel",
+                        "fieldType" to "MECHANICAL",
+                        "quality" to "INCOMPLETE",
+                    ),
+                )
+            result.isError shouldBe true
+            result.errorKind() shouldBe "self_contradiction"
+            val text = (result.content.first() as TextContent).text
+            text shouldContain "actually be incomplete"
+        }
+
+        // -- list_field_types ------------------------------------------------------------------
+
+        "list_field_types returns exactly the 6 classical field types with unique ids and matching symbols" {
+            val result = listFieldTypesHandler(null)
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["count"]!!.jsonPrimitive.int shouldBe 6
+            val entries = structured["fieldTypes"]!!.jsonArray
+            val ids = entries.map { it.jsonObject["id"]!!.jsonPrimitive.int }
+            ids.toSet() shouldHaveSize 6
+            ids.sorted() shouldContainExactly (1..6).toList()
+            entries.forAll { entry ->
+                val obj = entry.jsonObject
+                val id = obj["id"]!!.jsonPrimitive.int
+                obj["symbol"]!!.jsonPrimitive.content shouldBe FieldType.ofId(id).name
+                obj["abbreviation"]!!.jsonPrimitive.content shouldBe FieldType.ofId(id).abbreviation
+            }
+        }
+
+        "list_field_types ignores unrecognized arguments instead of rejecting them" {
+            val result = listFieldTypesHandler(args("bogus" to "value"))
+            result.isError.shouldBeNull()
+        }
+
+        // -- list_standard_solution_classes -----------------------------------------------------
+
+        "list_standard_solution_classes returns exactly the 5 classes with unique ids and matching symbols" {
+            val result = listStandardSolutionClassesHandler(null)
+            result.isError.shouldBeNull()
+            val structured = result.structured()
+            structured["count"]!!.jsonPrimitive.int shouldBe 5
+            val entries = structured["classes"]!!.jsonArray
+            val ids = entries.map { it.jsonObject["id"]!!.jsonPrimitive.int }
+            ids.toSet() shouldHaveSize 5
+            ids.sorted() shouldContainExactly (1..5).toList()
+            entries.forAll { entry ->
+                val obj = entry.jsonObject
+                val id = obj["id"]!!.jsonPrimitive.int
+                obj["symbol"]!!.jsonPrimitive.content shouldBe StandardSolutionClass.ofId(id).name
+            }
+            val solutionCountSum = entries.sumOf { it.jsonObject["solutionCount"]!!.jsonPrimitive.int }
+            solutionCountSum shouldBe 76
+        }
+
+        "list_standard_solution_classes ignores unrecognized arguments instead of rejecting them" {
+            val result = listStandardSolutionClassesHandler(args("bogus" to "value"))
+            result.isError.shouldBeNull()
         }
     })
 

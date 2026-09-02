@@ -42,7 +42,7 @@ private fun CallToolResult.errorKind(): String? = structuredContent?.get("errorK
 @OptIn(ExperimentalMcpApi::class)
 class KtrizMcpServerTest :
     StringSpec({
-        "tools/list lists exactly the four registered tools, each with a description and an object schema" {
+        "tools/list lists exactly the seven registered tools, each with a description and an object schema" {
             val client = connectedClient(buildServer())
             val tools = client.listTools().tools
 
@@ -52,6 +52,9 @@ class KtrizMcpServerTest :
                     "list_inventive_principles",
                     "resolve_contradiction",
                     "build_function_model",
+                    "build_su_field",
+                    "list_field_types",
+                    "list_standard_solution_classes",
                 )
             tools.forEach { tool ->
                 tool.description.isNullOrBlank() shouldBe false
@@ -83,6 +86,36 @@ class KtrizMcpServerTest :
                 )
             result.isError shouldBe true
             result.errorKind() shouldBe "unknown_parameter"
+        }
+
+        "build_su_field over a real client/server session returns a structured model" {
+            val client = connectedClient(buildServer())
+            val result =
+                client.callTool(
+                    "build_su_field",
+                    mapOf(
+                        "s1" to "Workpiece",
+                        "s2" to "Grinding wheel",
+                        "fieldType" to "MECHANICAL",
+                        "quality" to "INSUFFICIENT",
+                    ),
+                )
+            result.isError shouldBe null
+            val structured = result.structuredContent!!
+            structured["s1"]!!.jsonObject["name"]!!.jsonPrimitive.content shouldBe "Workpiece"
+            structured["fieldType"]!!.jsonObject["symbol"]!!.jsonPrimitive.content shouldBe "MECHANICAL"
+            structured["quality"]!!.jsonPrimitive.content shouldBe "INSUFFICIENT"
+        }
+
+        "build_su_field over a real session surfaces self_contradiction for an inconsistent quality" {
+            val client = connectedClient(buildServer())
+            val result =
+                client.callTool(
+                    "build_su_field",
+                    mapOf("s1" to "Workpiece", "quality" to "COMPLETE"),
+                )
+            result.isError shouldBe true
+            result.errorKind() shouldBe "self_contradiction"
         }
 
         "calling an unknown tool name does not end the session -- a following valid call still succeeds" {

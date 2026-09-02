@@ -25,10 +25,9 @@ import kotlinx.serialization.json.putJsonObject
 
 private const val TOOL_NAME = "build_function_model"
 
-/** Well under 512 (a name/verb is never legitimately anywhere near that long); named separately
- *  from [dev.ktriz.mcp.MAX_STRING_FIELD_LENGTH] because a component name or verb has its own,
- *  tighter, natural upper bound. */
-const val MAX_NAME_LENGTH = 200
+// MAX_NAME_LENGTH, requireBoundedName, requireNonBlank, and String.kotlinStringLiteral() live in
+// ToolSupport.kt -- shared across every tool in this package, not duplicated per file.
+
 const val MAX_COMPONENTS = 200
 const val MAX_EDGES = 500
 
@@ -70,28 +69,6 @@ private val INPUT_SCHEMA =
             },
         required = emptyList(),
     )
-
-private fun requireBoundedName(
-    field: String,
-    value: String,
-) {
-    if (value.length > MAX_NAME_LENGTH) {
-        throw ToolInputException("field '$field' exceeds the maximum allowed length of $MAX_NAME_LENGTH characters")
-    }
-}
-
-/** @throws ToolInputException if [value] is blank -- shared by both the `components` and `edges`
- *  input paths so a name/verb rejected as meaningless via one field can't slip through the other
- *  (OF-6 initially only fixed this for `edges`, leaving `components` accepting `[""]`/`["   "]`
- *  while the exact same string was rejected coming through `edges[].from`). */
-private fun requireNonBlank(
-    field: String,
-    value: String,
-) {
-    if (value.isBlank()) {
-        throw ToolInputException("field '$field' must not be blank")
-    }
-}
 
 private fun asNonBlankString(
     element: JsonElement?,
@@ -214,30 +191,6 @@ private fun kotlinIdentifier(
     }
     return candidate
 }
-
-/** Escapes [this] into a Kotlin string-template literal: backslash and quote first (so later
- *  escaping never doubles up the ones just inserted), then `$` (template-interpolation trigger --
- *  the SDK's own commit message promises a "directly compilable" snippet, which a component named
- *  e.g. `"Cost $total"` would otherwise silently break, either as a compile error or as a
- *  wrongly-interpolated string), then the control characters that would otherwise land as literal
- *  bytes inside the source and either break compilation (a raw newline mid-literal) or round-trip
- *  wrong (raw tab/CR). */
-private fun String.kotlinStringLiteral(): String =
-    buildString {
-        append('"')
-        for (c in this@kotlinStringLiteral) {
-            when (c) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '$' -> append("\\$")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                else -> append(c)
-            }
-        }
-        append('"')
-    }
 
 private fun functionModelKotlinSnippet(model: FunctionModel): String {
     val used = mutableSetOf<String>()

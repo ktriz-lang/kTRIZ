@@ -235,9 +235,8 @@ NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
 `StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
 solutions -- see below), and SVG rendering of the S1-S2-Field triangle (see
 <<su-field-svg>>). The 76 individual solution texts themselves and a lookup
-engine keyed on `SuFieldQuality`/`FieldType`, plus an MCP tool for Su-Field,
-are explicitly out of scope here and left to later waves (see kTRIZ-ADR-0001
-and
+engine keyed on `SuFieldQuality`/`FieldType` are explicitly out of scope here
+and left to later waves (see kTRIZ-ADR-0001 and
 link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]).
 
 `StandardSolutionClass` carries the 5-class structure only -- id, English/
@@ -582,7 +581,9 @@ from <<the-compiler-as-oracle,above>> applied at the protocol level: an agent
 that calls `list_engineering_parameters` first, then uses the returned
 `symbol` values verbatim, cannot hallucinate a parameter name -- and
 `resolve_contradiction`'s matrix lookup is a deterministic table read, never
-a generated guess.
+a generated guess. `list_field_types` and `list_standard_solution_classes`
+follow the exact same few-shot catalogue pattern for the Su-Field side of the
+DSL, ahead of `build_su_field`.
 
 === Build & run
 
@@ -649,6 +650,18 @@ A generic `mcpServers` entry, pointing at the `installDist` binary:
 | `build_function_model`
 | Builds and validates a `components`/`edges` TRIZ function model without saving or rendering it -- returns the normalized model plus an equivalent `functionModel { }` Kotlin snippet.
 | `malformed_input` (e.g. an invalid `quality`).
+
+| `list_field_types`
+| Lists all 6 classical Su-Field field types with `id`, `symbol`, `labelEn`, `labelDe`, `abbreviation`.
+| --
+
+| `list_standard_solution_classes`
+| Lists the 5-class structure of the 76 TRIZ standard solutions with `id`, `symbol`, `labelEn`, `labelDe`, `description`, `solutionCount`.
+| --
+
+| `build_su_field`
+| Builds and validates an `s1`/`s2`/`fieldType`/`quality` Su-Field model without saving or rendering it -- returns the normalized model plus an equivalent `suField { }` Kotlin snippet.
+| `malformed_input` (e.g. an invalid `fieldType`/`quality`), `self_contradiction` (quality/s2/fieldType mismatch).
 |===
 
 === Example call
@@ -728,7 +741,7 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 
 * Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is *done*: `ContradictionMatrixData.parse(...)` stays the public parser, `ContradictionMatrixSource.fromFile(path)` is the hardened file-based frontend, and the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own data source process-wide with no code change. Explicitly *not* included: Matrix 2003/2010/2022 (48-parameter) support -- such a file is still structurally rejected, because `EngineeringParameter` has 39 members and cells beyond that would be unaddressable through the typed lookup API (see kTRIZ-ADR-0003).
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
-* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
+* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, and `list_standard_solution_classes` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
 * Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset, `BOW_SPACING_PX = 9` px between adjacent edges' offsets clamped to `BOW_MAX_OFFSET_PX = +/-27` px, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking `+8` px per additional self-loop on the same node up to `SELF_LOOP_STACK_MAX_PX = 44` px) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are also vertically staggered (alternating above/below the route's midpoint) so they don't render on top of each other -- a known remaining limitation: for a component pair with many edges and long verbs, the staggered labels can still overlap a neighbouring node's box or each other, since this is a fixed-step stagger, not full collision-avoidance layout.
@@ -740,9 +753,14 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
   triangle -- *done*, see <<su-field-svg>>: fixed, deterministic geometry
   (no kUML layout engine involved -- the classical triangle has nothing to
   lay out), reusing `FunctionQuality`'s stroke vocabulary for
-  `SuFieldQuality` per MATRIZ's own "similar symbols" statement. A lookup
-  engine over the 76 individual solutions and an MCP tool for Su-Field are
-  still explicitly later waves (kTRIZ-ADR-0001).
+  `SuFieldQuality` per MATRIZ's own "similar symbols" statement. An MCP tool
+  for Su-Field -- *done*, see <<mcp>>: `build_su_field` (construction +
+  validation only -- no MCP-exposed rendering tool, consistent with
+  `build_function_model`, which likewise has none), plus the
+  `list_field_types`/`list_standard_solution_classes` catalogue tools. A
+  lookup engine over the 76 individual solutions remains a deliberately
+  deferred future item, pending a trustworthy primary source
+  (kTRIZ-ADR-0001).
 
 == Licence
 

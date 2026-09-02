@@ -1,8 +1,11 @@
 package dev.ktriz.mcp
 
 import dev.ktriz.mcp.tools.registerBuildFunctionModelTool
+import dev.ktriz.mcp.tools.registerBuildSuFieldTool
 import dev.ktriz.mcp.tools.registerListEngineeringParametersTool
+import dev.ktriz.mcp.tools.registerListFieldTypesTool
 import dev.ktriz.mcp.tools.registerListInventivePrinciplesTool
+import dev.ktriz.mcp.tools.registerListStandardSolutionClassesTool
 import dev.ktriz.mcp.tools.registerResolveContradictionTool
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -20,14 +23,16 @@ private val logger = ktrizMcpLogger {}
 
 /**
  * Assembles the kTRIZ MCP server: `list_engineering_parameters`, `list_inventive_principles`,
- * `resolve_contradiction`, and `build_function_model`.
+ * `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, and
+ * `list_standard_solution_classes`.
  *
  * Deliberately stateless -- unlike kSTEP's `kstep-mcp`, there is no `EntityStore` parameter here.
  * Every tool in this module is a pure function over [dev.ktriz.core.EngineeringParameter.entries],
- * [dev.ktriz.core.InventivePrinciple.entries], and the immutable [dev.ktriz.core.ContradictionMatrix]
- * singleton -- no tool call here ever depends on, or mutates, anything another call produced. This
- * is also the strongest possible security position: no cross-session state, no capacity limits to
- * enforce, no concurrent-write races to reason about.
+ * [dev.ktriz.core.InventivePrinciple.entries], the immutable [dev.ktriz.core.ContradictionMatrix]
+ * singleton, [dev.ktriz.sufield.FieldType.entries], [dev.ktriz.sufield.StandardSolutionClass.entries],
+ * and [dev.ktriz.sufield.SuField]'s own init validation -- no tool call here ever depends on, or
+ * mutates, anything another call produced. This is also the strongest possible security position:
+ * no cross-session state, no capacity limits to enforce, no concurrent-write races to reason about.
  */
 fun buildServer(): Server {
     val server =
@@ -39,7 +44,10 @@ fun buildServer(): Server {
     registerListInventivePrinciplesTool(server)
     registerResolveContradictionTool(server)
     registerBuildFunctionModelTool(server)
-    logger.info { "kTRIZ MCP server assembled: 4 tools registered" }
+    registerBuildSuFieldTool(server)
+    registerListFieldTypesTool(server)
+    registerListStandardSolutionClassesTool(server)
+    logger.info { "kTRIZ MCP server assembled: 7 tools registered" }
     return server
 }
 

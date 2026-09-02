@@ -58,4 +58,29 @@ class KtrizMcpLoggingTest :
             // own code path (no println, no misdirected logger output), not the transport itself.
             capturedOut.toString(Charsets.UTF_8) shouldBe ""
         }
+
+        "a build_su_field self_contradiction error is logged via SLF4J on stderr, never on stdout" {
+            val originalOut = System.out
+            val originalErr = System.err
+            val capturedOut = ByteArrayOutputStream()
+            val capturedErr = ByteArrayOutputStream()
+            System.setOut(PrintStream(capturedOut, true, Charsets.UTF_8))
+            System.setErr(PrintStream(capturedErr, true, Charsets.UTF_8))
+            try {
+                val client = connectedClient(buildServer())
+                client.callTool(
+                    "build_su_field",
+                    mapOf("s1" to "Workpiece", "quality" to "COMPLETE"),
+                )
+            } finally {
+                System.setOut(originalOut)
+                System.setErr(originalErr)
+            }
+
+            val err = capturedErr.toString(Charsets.UTF_8)
+            err shouldContain "build_su_field"
+            err shouldContain "self_contradiction"
+
+            capturedOut.toString(Charsets.UTF_8) shouldBe ""
+        }
     })

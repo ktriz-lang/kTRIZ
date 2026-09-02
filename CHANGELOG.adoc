@@ -79,17 +79,19 @@ citable reference point, not to mark a sudden jump in functionality.
   an optional `FieldType` (the six classical Altshuller field types --
   mechanical, thermal, chemical, electric, magnetic, gravitational), judged
   overall by a `SuFieldQuality` (`COMPLETE`/`INCOMPLETE`/`INSUFFICIENT`/
-  `EXCESSIVE`/`HARMFUL`). Deliberately narrow scope for this first wave: no
-  lookup engine over the 76 standard inventive solutions yet, no SVG
-  rendering of the S1-S2-Field triangle, no MCP tool -- planned as separate,
-  later waves.
+  `EXCESSIVE`/`HARMFUL`). An MCP tool, `build_su_field`, plus
+  `list_field_types`/`list_standard_solution_classes` catalogue tools, are
+  *done* -- see the "AI tooling" entry below. Deliberately still out of
+  scope: a lookup engine over the 76 standard inventive solutions.
 
 === AI tooling
 
 * An MCP server (module `ktriz-mcp`) exposing the 39 parameters, the 40
-  principles, the deterministic contradiction-matrix lookup, and
-  function-model construction as tools over stdio, for LLM agents. Wired
-  into the CLI as `ktriz mcp`.
+  principles, the deterministic contradiction-matrix lookup,
+  function-model construction, and Su-Field model construction
+  (`build_su_field`) plus Su-Field/standard-solution-class catalogues
+  (`list_field_types`, `list_standard_solution_classes`) as tools over
+  stdio, for LLM agents. Wired into the CLI as `ktriz mcp`.
 * A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`) that
   compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*`/
   `dev.ktriz.render.kuml.*` in scope by default -- no imports needed, and

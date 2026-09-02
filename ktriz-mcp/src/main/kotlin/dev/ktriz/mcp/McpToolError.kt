@@ -125,11 +125,12 @@ fun malformedInputError(
     )
 
 /**
- * A parameter contradicting itself -- the one `ktriz-core` runtime check ([dev.ktriz.core.Contradiction]'s
- * `init` block). [message] is [dev.ktriz.core.Contradiction]'s own hand-written require() text, safe to
- * forward verbatim (unlike every other exception message in this module): it is authored in
- * `ktriz-core`, not derived from a stack trace, and does not embed caller input beyond the
- * parameter's own public label.
+ * A hand-authored `ktriz-core` domain-invariant violation -- currently
+ * [dev.ktriz.core.Contradiction]'s `init` block (`improving == worsening`) and
+ * [dev.ktriz.sufield.SuField]'s `init` block (quality/s2/field consistency). [message] is that
+ * check's own hand-written require() text, safe to forward verbatim (unlike every other
+ * exception message in this module): it is authored in `ktriz-core`, not derived from a stack
+ * trace, and does not embed caller input beyond the model's own public labels.
  */
 fun selfContradictionError(message: String?): CallToolResult =
     CallToolResult(

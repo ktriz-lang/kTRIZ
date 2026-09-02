@@ -2,6 +2,8 @@ package dev.ktriz.mcp
 
 import dev.ktriz.core.EngineeringParameter
 import dev.ktriz.core.InventivePrinciple
+import dev.ktriz.sufield.FieldType
+import dev.ktriz.sufield.StandardSolutionClass
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -29,4 +31,26 @@ fun InventivePrinciple.toJson(): JsonObject =
         put("symbol", name)
         put("labelEn", labelEn)
         put("labelDe", labelDe)
+    }
+
+/** Same shape as [EngineeringParameter.toJson], plus `abbreviation`, for [FieldType]. */
+fun FieldType.toJson(): JsonObject =
+    buildJsonObject {
+        put("id", id)
+        put("symbol", name)
+        put("labelEn", labelEn)
+        put("labelDe", labelDe)
+        put("abbreviation", abbreviation)
+    }
+
+/** Same shape as [EngineeringParameter.toJson], plus `description` and `solutionCount`, for
+ *  [StandardSolutionClass]. */
+fun StandardSolutionClass.toJson(): JsonObject =
+    buildJsonObject {
+        put("id", id)
+        put("symbol", name)
+        put("labelEn", labelEn)
+        put("labelDe", labelDe)
+        put("description", description)
+        put("solutionCount", solutionCount)
     }
