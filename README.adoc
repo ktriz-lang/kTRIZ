@@ -4,13 +4,16 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M2, wave 1). The
-core contradiction spine, the function model and SVG rendering for the
-function model exist, the contradiction matrix is fully populated with the
-classical 39x39 table (1248 cells, see <<matrix>>), an MCP server exposes
-it all to LLM agents (see <<mcp>>), and a `*.ktriz.kts` scripting host is
-usable via `ktriz run` (see <<scripting>>). `ktriz run` and `ktriz mcp` both
-exist; no published artifact. The API is unstable.
+WARNING: kTRIZ is in very early, pre-release development. M1 (the core
+toolchain: contradiction spine, full classical 39x39 matrix, function models
+with SVG rendering, MCP server, scripting host) is complete and tagged as
+`v0.1.0`. M2 (substance-field/Su-Field modeling) is underway: the `suField
+{ }` DSL, the six classical field types, the 5-class standard-solutions
+structure, SVG rendering of the S1-S2-Field triangle, and three Su-Field MCP
+tools all exist (see <<su-field>>, <<su-field-svg>>, <<mcp>>); the 76
+individual standard solutions as a lookup remain a deliberately deferred
+future item. `ktriz run` and `ktriz mcp` both exist; no published artifact.
+The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -74,7 +77,7 @@ What works today:
   substance S1, an optional second substance S2 acted on through an optional
   `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>), with
   SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>).
-* 304 Kotest test cases covering the above.
+* 325 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
