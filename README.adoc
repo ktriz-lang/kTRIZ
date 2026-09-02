@@ -659,3 +659,4 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 == Licence
 
 Apache License, Version 2.0. See link:LICENSE[LICENSE] and link:NOTICE[NOTICE].
+See link:CHANGELOG.adoc[CHANGELOG.adoc] for release notes.

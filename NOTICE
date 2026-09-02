@@ -26,11 +26,25 @@ any cell.
 
 kTRIZ does NOT ship, and will not ship, the Matrix 2003 / Matrix 2010 /
 Matrix 2022 data sets (Darrell Mann / Systematic Innovation / CREAX), which
-remain under their authors' copyright and are licensed selectively. The
-pluggable matrix-source seam intended to let holders of such a licence
-supply their own data locally exists as a parsing entry point
-(`ContradictionMatrixData.parse`); a discovery/configuration mechanism to
-swap `ContradictionMatrix`'s own data source at runtime does not exist yet.
+remain under their authors' copyright and are licensed selectively. Holders
+of such a licence can supply their own data locally through the pluggable
+matrix-source seam: `ContradictionMatrixData.parse` is the parsing entry
+point, `ContradictionMatrixSource.fromFile(path)` the hardened file-based
+frontend, and the system property `ktriz.matrix.file` swaps
+`ContradictionMatrix`'s own process-wide default with no code change. This
+seam only accepts files shaped like the classical 39-parameter matrix
+(`EngineeringParameter` has exactly 39 members) -- a Matrix 2003/2010/2022
+file, which addresses 48 parameters, is structurally rejected, not merely
+discouraged.
+
+TRIZ substance-field (Su-Field) analysis -- the six classical field types
+(mechanical, thermal, chemical, electric, magnetic, gravitational) and the
+five-way judgement of a substance-field triangle -- likewise originates with
+Altshuller and is treated here under the same public-domain-by-goodwill
+basis as the contradiction matrix. kTRIZ ships only this classical,
+six-field taxonomy, never the later MATCEMIB eight-field extension
+(Belski/Livotov/Mayer) or any other newer or differently attributed
+substance-field framework.
 
 Note that "public domain by goodwill" is a community consensus, not a formal
 licence grant (there is no CC0 dedication). A concrete digitised

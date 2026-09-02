@@ -1,0 +1,83 @@
+= Changelog
+
+All notable changes to kTRIZ are documented here. The project is pre-1.0
+and the API is unstable -- breaking changes may happen in any release
+without a deprecation period.
+
+== v0.1.0 -- 2026-09-02
+
+First tagged snapshot. Everything below already exists on `master` before
+this tag; the tag exists to give the current state of the project a stable,
+citable reference point, not to mark a sudden jump in functionality.
+
+=== Contradiction spine
+
+* All 39 classical Altshuller engineering parameters and all 40 classical
+  inventive principles, as Kotlin `enum class`es with English and German
+  labels -- existence is a compiler-enforced guarantee, not a runtime check.
+* `Contradiction` + the `contradiction { }` factory, with a compile-time
+  existence check and a runtime well-formedness check (a parameter cannot
+  contradict itself).
+* The full classical 39x39 contradiction matrix (1248 populated cells),
+  reconciled from four independent, freely available transcriptions under a
+  documented majority-rule process -- see `docs/matrix-provenance.adoc` and
+  kTRIZ-ADR-0003. Matrix 2003/2010/2022 (Darrell Mann/CREAX, proprietary,
+  48 parameters) was never consulted and is structurally rejected by the
+  parser.
+* A pluggable matrix-source seam: `ContradictionMatrixSource.fromFile(path)`
+  loads an operator-supplied matrix file through the same hardened,
+  size-capped, URI-scheme-restricted gate and parser as the bundled data;
+  the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own
+  process-wide default with no code change.
+
+=== Function models
+
+* `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
+  nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
+  `EXCESSIVE`, with automatic component dedup by name and accepted
+  self-loops.
+* `FunctionModel.renderSvg()` (module `ktriz-render-kuml`) renders a
+  function model to a standalone SVG document, using kUML's
+  `kuml-layout-api`/`kuml-layout-elk` purely as a graph-layout engine (no
+  kUML metamodel, no kUML SVG renderer). Node boxes size from real
+  font-metrics measurement, every edge gets an arrowhead oriented from its
+  own route geometry, multiple edges between the same component pair bow
+  apart and their labels stagger to stay readable, and self-loops draw a
+  dedicated fixed-radius arc.
+
+=== Substance-field models
+
+* `suField { }` -- a small DSL for TRIZ substance-field (Su-Field) analysis:
+  an object substance S1, an optional second substance S2 acted on through
+  an optional `FieldType` (the six classical Altshuller field types --
+  mechanical, thermal, chemical, electric, magnetic, gravitational), judged
+  overall by a `SuFieldQuality` (`COMPLETE`/`INCOMPLETE`/`INSUFFICIENT`/
+  `EXCESSIVE`/`HARMFUL`). Deliberately narrow scope for this first wave: no
+  lookup engine over the 76 standard inventive solutions yet, no SVG
+  rendering of the S1-S2-Field triangle, no MCP tool -- planned as separate,
+  later waves.
+
+=== AI tooling
+
+* An MCP server (module `ktriz-mcp`) exposing the 39 parameters, the 40
+  principles, the deterministic contradiction-matrix lookup, and
+  function-model construction as tools over stdio, for LLM agents. Wired
+  into the CLI as `ktriz mcp`.
+* A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`) that
+  compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*`/
+  `dev.ktriz.render.kuml.*` in scope by default -- no imports needed, and
+  `FunctionModel.renderSvg()` is directly callable from a script. Every
+  outcome (success, compile error, runtime error) maps to a structured
+  `KtrizScriptOutcome` with a stable `KTRIZ-S-xxx` code, never a raw
+  exception or stack trace -- the generate-compile-repair signal the whole
+  project is built around. Exposed on the command line as `ktriz run`, with
+  a `--output json` mode for machine consumers.
+
+=== Not yet included
+
+* The 76 standard inventive solutions (Su-Field lookup/repair engine).
+* SVG rendering of Su-Field triangles.
+* Physical contradictions, ARIZ as a guided workflow, evolution trends --
+  explicitly deferred past V1, see kTRIZ-ADR-0001.
+* Any published artifact (Maven Central, Homebrew, SDKMAN!) -- this tag is
+  source-only.
