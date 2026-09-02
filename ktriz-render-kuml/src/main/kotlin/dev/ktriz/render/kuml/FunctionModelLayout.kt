@@ -7,10 +7,6 @@ import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
-import dev.kuml.layout.Size
-
-internal const val NODE_WIDTH_PX = 140f
-internal const val NODE_HEIGHT_PX = 60f
 
 /**
  * All component names this [FunctionModel] needs a layout node for, in first-seen order,
@@ -35,15 +31,15 @@ internal fun FunctionModel.allNodeNames(): List<String> {
 /**
  * Converts this [FunctionModel] into a generic [LayoutGraph] for
  * [dev.kuml.layout.elk.ElkLayoutEngine] -- kUML sees only nodes/edges/geometry here, never
- * TRIZ semantics (kTRIZ-ADR-0002, "Update 2026-08-13"). Node intrinsic size is a fixed
- * [NODE_WIDTH_PX] x [NODE_HEIGHT_PX] estimate, not measured text metrics -- V1 has no
- * font-measurement dependency; revisit only if real component names in practice overflow
- * the box.
+ * TRIZ semantics (kTRIZ-ADR-0002, "Update 2026-08-13"). Node intrinsic size comes from
+ * [measureNodeSize] (see `NodeSizing.kt`) -- real, headless-safe font-metrics measurement of
+ * the component name, padded, snapped to a width grid and clamped between a minimum and
+ * maximum width, rather than a fixed estimate.
  */
 internal fun FunctionModel.toLayoutGraph(): LayoutGraph {
     val nodes =
         allNodeNames().map { name ->
-            LayoutNode(id = NodeId(name), intrinsicSize = Size(width = NODE_WIDTH_PX, height = NODE_HEIGHT_PX))
+            LayoutNode(id = NodeId(name), intrinsicSize = measureNodeSize(name))
         }
     val layoutEdges =
         edges.mapIndexed { index, edge ->

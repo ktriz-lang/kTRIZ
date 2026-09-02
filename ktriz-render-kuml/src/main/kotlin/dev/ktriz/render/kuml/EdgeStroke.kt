@@ -13,6 +13,12 @@ internal const val DASH_ARRAY = "8 4"
  */
 internal const val DOUBLE_STROKE_GAP_PX = 5f
 
+/** Length in px of the triangular arrowhead drawn at every edge's target, along the route axis. */
+internal const val ARROW_LENGTH_PX = 10f
+
+/** Half-width in px of the triangular arrowhead's base, perpendicular to the route axis. */
+internal const val ARROW_HALF_WIDTH_PX = 4f
+
 /**
  * kTRIZ's own visual vocabulary for [FunctionQuality] -- kUML's SVG renderer has no generic
  * wavy/doubled-line concept to reuse (kTRIZ-ADR-0002, "Update 2026-08-13"), so these four
