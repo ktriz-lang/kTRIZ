@@ -44,6 +44,11 @@ What works today:
 * `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
   deterministic matrix lookup over the full classical 39x39 matrix, 1248
   populated cells, loaded from a bundled classpath resource (see <<matrix>>).
+* A pluggable matrix-source seam: `ContradictionMatrixSource.fromFile(path)`
+  loads an operator-supplied matrix file through the same hardened gate and
+  parser as the bundled data, and the system property `ktriz.matrix.file`
+  swaps `ContradictionMatrix`'s own process-wide default with zero code
+  changes (see <<matrix>>).
 * `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
   nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
   `EXCESSIVE`, with automatic component dedup by name (see <<function-model>>).
@@ -62,7 +67,7 @@ What works today:
   outcome -- success, compile error, runtime error -- into a structured
   `KtrizScriptOutcome` with a stable `KTRIZ-S-xxx` code, never a raw exception
   or stack trace. Exposed on the command line as `ktriz run` (see <<scripting>>).
-* 196 Kotest test cases covering the above.
+* 216 Kotest test cases covering the above.
 
 What does not exist yet: a way to call `FunctionModel.renderSvg()` from
 inside a script. See <<roadmap>>.
@@ -346,9 +351,48 @@ The parsing itself, `ContradictionMatrixData.parse(reader, provenance)`, is
 the pluggable matrix-source seam ADR-0003 calls for: it is a public, pure
 function of any `Reader`, so a user who holds a Matrix 2003/2010/2022 licence
 can parse their own file locally into the same shape, without kTRIZ ever
-shipping, downloading, or bundling that data itself. There is no
-discovery/configuration mechanism yet to swap `ContradictionMatrix`'s
-data source globally -- that is future work.
+shipping, downloading, or bundling that data itself.
+
+`ContradictionMatrixSource` builds a hardened, discoverable mechanism on top
+of that seam:
+
+[source,kotlin]
+----
+// Programmatically -- hold your own matrix explicitly, ContradictionMatrix's
+// process-wide default stays untouched:
+val house = ContradictionMatrixSource.fromFile(Path.of("/opt/triz/house-matrix.csv"))
+val principles = contradiction(
+    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
+    worsening = EngineeringParameter.STRENGTH,
+).resolve(house)
+----
+
+[source,shell]
+----
+# Process-wide, no code change -- applies to ktriz run, ktriz mcp, and any embedding:
+java -Dktriz.matrix.file=/opt/triz/house-matrix.csv -jar app.jar
+
+# Via the installed CLI (the application start script passes KTRIZ_OPTS through):
+KTRIZ_OPTS="-Dktriz.matrix.file=/opt/triz/house-matrix.csv" ktriz run problem.ktriz.kts
+----
+
+The file named by `ktriz.matrix.file` must be an absolute local path (never
+a URL -- kTRIZ never downloads matrix data), a regular, readable file no
+larger than 4 MiB, strictly UTF-8 encoded, and it is parsed through the exact same
+`ContradictionMatrixData.parse` validation the bundled matrix uses -- no
+second, laxer path, and the `1..39` parameter-id guardrail (see below)
+applies to it exactly as it does to the bundled data. If the override file
+is missing, malformed, or otherwise fails to load, kTRIZ aborts rather than
+silently falling back to the bundled classical matrix -- a silent fallback
+would mean an operator believes they are using their own matrix while
+actually getting classical results.
+
+Not supported, on any layer: parsing a Matrix 2003/2010/2022 (48-parameter)
+file. `ContradictionMatrixData.parse`'s `1..39` range check is a structural
+guardrail (see kTRIZ-ADR-0003), not merely a default -- `EngineeringParameter`
+has exactly 39 members, so a cell addressing parameter 42 would be
+permanently unreachable through the typed lookup API even if the parser
+accepted it.
 
 [#mcp]
 == MCP server
@@ -472,7 +516,7 @@ matrix, with no server-side session state to manage or leak.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `functionModel`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library.
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
 
 | `ktriz-script`
 | The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
@@ -503,7 +547,7 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 [#roadmap]
 == Roadmap
 
-* Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is partially done: `ContradictionMatrixData.parse(...)` exists as a public parsing entry point, but there is no discovery/configuration mechanism yet to swap `ContradictionMatrix`'s own data source at runtime.
+* Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is *done*: `ContradictionMatrixData.parse(...)` stays the public parser, `ContradictionMatrixSource.fromFile(path)` is the hardened file-based frontend, and the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own data source process-wide with no code change. Explicitly *not* included: Matrix 2003/2010/2022 (48-parameter) support -- such a file is still structurally rejected, because `EngineeringParameter` has 39 members and cells beyond that would be unaddressable through the typed lookup API (see kTRIZ-ADR-0003).
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
 * MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.

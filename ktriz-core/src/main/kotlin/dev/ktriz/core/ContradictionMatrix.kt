@@ -29,15 +29,21 @@ package dev.ktriz.core
  * purpose -- it is the pluggable matrix-source seam ADR-0003 calls for, so a user holding a
  * Matrix 2003/2010/2022 licence can parse their own file locally without kTRIZ ever shipping
  * that data.
+ *
+ * ## Pluggable matrix source (kTRIZ-ADR-0003)
+ *
+ * The data this object serves is resolved once, lazily, via [ContradictionMatrixSource.resolve]:
+ * by default the bundled classical matrix, or -- if the system property
+ * `ktriz.matrix.file` names an absolute local file -- that file instead, loaded through the
+ * same hardened gate and the exact same parser as the bundled data. See
+ * [ContradictionMatrixSource] for the full mechanism, its threat model, and why it
+ * deliberately never falls back silently to the classical matrix on a bad override, and
+ * never supports a remote/URL source on any layer. The override is only settable by whoever
+ * starts the JVM; it is never derived from network input, a config file parsed from
+ * untrusted data, or any per-request value.
  */
 object ContradictionMatrix {
-    private const val RESOURCE_NAME = "contradiction-matrix-1971.csv"
-
-    private const val PROVENANCE =
-        "Classical Altshuller 39x39 matrix, kTRIZ in-house reconciliation of four independent " +
-            "transcriptions, 2026-09-02; see docs/matrix-provenance.adoc"
-
-    private val classical: ContradictionMatrixData by lazy { loadClassical() }
+    private val resolved: ContradictionMatrixSource.Resolved by lazy { ContradictionMatrixSource.resolve() }
 
     /**
      * Deterministic, pure lookup. Returns the recommended principles in TRIZ rank order,
@@ -45,40 +51,38 @@ object ContradictionMatrix {
      * recommendation" result, never an error. Contrast with an invented parameter, which
      * does not compile in the first place.
      */
-    fun lookup(contradiction: Contradiction): List<InventivePrinciple> = classical.lookup(contradiction)
+    fun lookup(contradiction: Contradiction): List<InventivePrinciple> = resolved.data.lookup(contradiction)
 
     /**
-     * Number of populated cells (1248 in the bundled classical matrix). Exposed so tests can
-     * pin the data boundary.
+     * Number of populated cells (1248 in the bundled classical matrix; a different count if
+     * `ktriz.matrix.file` is set). Exposed so tests can pin the data boundary.
      *
      * Deliberately `public`, not `internal`: `ktriz-tests` is a separate Gradle module/Kotlin
      * compilation unit from `ktriz-core` (a project dependency does not grant `internal`
      * visibility across module boundaries), so an `internal` declaration here would make the
      * boundary test in `ktriz-tests` fail to compile rather than fail to pass.
      */
-    val populatedCellCount: Int get() = classical.populatedCellCount
+    val populatedCellCount: Int get() = resolved.data.populatedCellCount
 
-    /** Origin of the bundled data, for attribution/audit. See `docs/matrix-provenance.adoc`. */
-    val provenance: String get() = classical.provenance
+    /** Origin of the loaded data, for attribution/audit. See `docs/matrix-provenance.adoc`. */
+    val provenance: String get() = resolved.data.provenance
 
-    private fun loadClassical(): ContradictionMatrixData {
-        // Class#getResourceAsStream (not ClassLoader#getResourceAsStream) resolves
-        // package-relative to this class with no leading slash -- deliberately not an
-        // absolute file path, which would break CI (the classpath resource travels with the
-        // jar; a filesystem path does not).
-        val stream =
-            ContradictionMatrix::class.java.getResourceAsStream(RESOURCE_NAME)
-                ?: error(
-                    "Bundled contradiction matrix resource '$RESOURCE_NAME' is missing from " +
-                        "the classpath next to dev.ktriz.core.ContradictionMatrix. This is a " +
-                        "packaging bug -- the file should live at " +
-                        "ktriz-core/src/main/resources/dev/ktriz/core/$RESOURCE_NAME.",
-                )
-        return stream.reader(Charsets.UTF_8).use { reader ->
-            ContradictionMatrixData.parse(reader, provenance = PROVENANCE)
-        }
-    }
+    /**
+     * Whether [lookup]/[populatedCellCount]/[provenance] currently serve the bundled
+     * classical matrix or an operator-supplied external file. See
+     * [ContradictionMatrixSource.Origin].
+     */
+    val origin: ContradictionMatrixSource.Origin get() = resolved.origin
 }
 
 /** Ergonomic extension so call sites read fluently: `problem.resolve()`. */
 fun Contradiction.resolve(): List<InventivePrinciple> = ContradictionMatrix.lookup(this)
+
+/**
+ * Resolves against an explicitly held [matrix] instead of [ContradictionMatrix]'s
+ * process-wide default -- for callers who already loaded their own matrix via
+ * [ContradictionMatrixSource.fromFile] and want the same fluent call-site shape as the
+ * no-argument [resolve]. No overload ambiguity with the no-argument variant: the parameter
+ * is mandatory here.
+ */
+fun Contradiction.resolve(matrix: ContradictionMatrixData): List<InventivePrinciple> = matrix.lookup(this)

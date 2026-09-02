@@ -230,6 +230,14 @@ or referenced. All four sources are 39-parameter matrices; kTRIZ's parser
 any parameter id outside `1..39` is a parse error, which would immediately
 reject a 48-parameter Matrix 2003/2010/2022-shaped file.
 
+This guardrail is not limited to the bundled data. `ContradictionMatrixSource`
+(the pluggable matrix-source seam this ADR calls for -- see
+link:../README.adoc#matrix[the README's "Contradiction matrix data" section])
+loads any operator-supplied external matrix file through the exact same
+`ContradictionMatrixData.parse` call, with no second, laxer validation path.
+A 48-parameter file named via `fromFile` or the `ktriz.matrix.file` system
+property is rejected identically to a bundled one attempting the same thing.
+
 == Reproducing this reconciliation
 
 ----

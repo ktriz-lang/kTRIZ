@@ -1,6 +1,7 @@
 package dev.ktriz.tests
 
 import dev.ktriz.core.ContradictionMatrix
+import dev.ktriz.core.ContradictionMatrixSource
 import dev.ktriz.core.EngineeringParameter.DURATION_OF_ACTION_OF_MOVING_OBJECT
 import dev.ktriz.core.EngineeringParameter.FORCE
 import dev.ktriz.core.EngineeringParameter.LENGTH_OF_MOVING_OBJECT
@@ -16,6 +17,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 
 /**
  * Covers the full classical 39x39 matrix bundled via `contradiction-matrix-1971.csv`
@@ -194,6 +196,18 @@ class ContradictionMatrixTest :
             shouldThrow<UnsupportedOperationException> {
                 mutable.add(InventivePrinciple.SEGMENTATION)
             }
+        }
+
+        "the process default (no ktriz.matrix.file override) is BUNDLED_CLASSICAL with the classical provenance" {
+            // Regression guard for the pluggable matrix-source seam (kTRIZ-ADR-0003): as long
+            // as no test in this JVM sets ktriz.matrix.file before ContradictionMatrix is
+            // first touched, its `by lazy` singleton must resolve to the bundled classical
+            // matrix, byte-identical in behaviour to the pre-seam loadClassical(). Every
+            // other case in this file (populatedCellCount == 1248, the four pinned cells, the
+            // README output) is itself the real regression proof for that "no behaviour
+            // change without an override" guarantee.
+            ContradictionMatrix.origin shouldBe ContradictionMatrixSource.Origin.BUNDLED_CLASSICAL
+            ContradictionMatrix.provenance shouldContain "reconciliation"
         }
 
         "the raw bundled matrix is structurally sound across every cell" {
