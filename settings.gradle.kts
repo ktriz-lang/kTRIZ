@@ -21,5 +21,6 @@ include(
     "ktriz-core",
     "ktriz-cli",
     "ktriz-render-kuml",
+    "ktriz-mcp",
     "ktriz-tests",
 )

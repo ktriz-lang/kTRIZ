@@ -4,11 +4,12 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 4). The
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 5). The
 core contradiction spine, the function model and SVG rendering for the
 function model exist, the contradiction matrix is fully populated with the
-classical 39x39 table (1248 cells, see <<matrix>>), there is no CLI, no
-scripting host and no published artifact. The API is unstable.
+classical 39x39 table (1248 cells, see <<matrix>>), and an MCP server exposes
+it all to LLM agents (see <<mcp>>). There is no `*.ktriz.kts` scripting host,
+no real CLI commands, and no published artifact. The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -51,12 +52,16 @@ What works today:
   kUML metamodel, no kUML SVG renderer). `FunctionQuality` maps to a stroke
   treatment: `USEFUL` solid, `INSUFFICIENT` dashed, `EXCESSIVE` a doubled
   line, `HARMFUL` a wavy path (see <<function-model-svg>>).
-* 85 Kotest test cases covering the above.
+* An MCP server (module `ktriz-mcp`) exposing the 39 parameters, the 40
+  principles, the deterministic matrix lookup, and TRIZ function-model
+  validation as tools over stdio, for LLM agents (see <<mcp>>).
+* 121 Kotest test cases covering the above.
 
-What does not exist yet: an MCP server, a `*.ktriz.kts` scripting host, and
-any real CLI command (`ktriz-cli` currently prints a placeholder banner
-only). See <<roadmap>>.
+What does not exist yet: a `*.ktriz.kts` scripting host, a CLI subcommand
+wiring `ktriz-mcp` into `ktriz-cli`, and any other real CLI command
+(`ktriz-cli` currently prints a placeholder banner only). See <<roadmap>>.
 
+[#hello-world]
 == Hello World
 
 kTRIZ has no scripting host yet (see <<roadmap>>), so this is plain Kotlin,
@@ -168,6 +173,7 @@ hardcoded line styles and no generic node/edge diagram entry point a
 engineering-drawing convention for an over-strong connection), and `HARMFUL`
 as a sine-perturbed wavy path.
 
+[#the-compiler-as-oracle]
 == The compiler as oracle
 
 Ask an LLM to improve "chassis weight" against a made-up parameter, and the
@@ -211,6 +217,105 @@ shipping, downloading, or bundling that data itself. There is no
 discovery/configuration mechanism yet to swap `ContradictionMatrix`'s
 data source globally -- that is future work.
 
+[#mcp]
+== MCP server
+
+kTRIZ ships a Model Context Protocol server, `ktriz-mcp`, exposing the DSL to
+LLM agents as tools over stdio. This is the same "compiler as oracle" idea
+from <<the-compiler-as-oracle,above>> applied at the protocol level: an agent
+that calls `list_engineering_parameters` first, then uses the returned
+`symbol` values verbatim, cannot hallucinate a parameter name -- and
+`resolve_contradiction`'s matrix lookup is a deterministic table read, never
+a generated guess.
+
+=== Build & run
+
+[source,shell]
+----
+./gradlew clean :ktriz-mcp:installDist
+./ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp   # speaks MCP over stdio
+----
+
+WARNING: Do not run `./gradlew :ktriz-mcp:run` for a real MCP client. Gradle's
+own console output shares stdout with the JSON-RPC stream the server speaks,
+so a client reading that stream sees corrupted output. Always launch the
+`installDist` binary directly.
+
+=== Client configuration
+
+A generic `mcpServers` entry, pointing at the `installDist` binary:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "ktriz": {
+      "command": "/absolute/path/to/kTRIZ/ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp"
+    }
+  }
+}
+----
+
+=== Tools
+
+[cols="1,2,2"]
+|===
+| Tool | Purpose | Notable errors
+
+| `list_engineering_parameters`
+| Lists all 39 engineering parameters with `id`, `symbol` (the exact Kotlin enum member), `labelEn`, `labelDe`.
+| --
+
+| `list_inventive_principles`
+| Same shape, for all 40 inventive principles.
+| --
+
+| `resolve_contradiction`
+| Looks up the classical matrix for `improving`/`worsening` (each accepts a symbol, an English/German label, or a `1..39` id) -- returns the recommended principles in rank order, plus a ready-to-use `contradiction(improving = ..., worsening = ...)` Kotlin snippet.
+| `unknown_parameter` (with "did you mean" suggestions), `self_contradiction`, `malformed_input`.
+
+| `build_function_model`
+| Builds and validates a `components`/`edges` TRIZ function model without saving or rendering it -- returns the normalized model plus an equivalent `functionModel { }` Kotlin snippet.
+| `malformed_input` (e.g. an invalid `quality`).
+|===
+
+=== Example call
+
+[source,json]
+----
+{"name": "resolve_contradiction", "arguments": {"improving": "WEIGHT_OF_MOVING_OBJECT", "worsening": "STRENGTH"}}
+----
+
+returns (abbreviated), matching the <<hello-world,Hello World>> output above:
+
+[source,json]
+----
+{
+  "principles": [
+    {"rank": 1, "id": 28, "symbol": "MECHANICS_SUBSTITUTION"},
+    {"rank": 2, "id": 27, "symbol": "CHEAP_SHORT_LIVING_OBJECTS"},
+    {"rank": 3, "id": 18, "symbol": "MECHANICAL_VIBRATION"},
+    {"rank": 4, "id": 40, "symbol": "COMPOSITE_MATERIALS"}
+  ],
+  "empty": false,
+  "kotlin": "contradiction(\n    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,\n    worsening = EngineeringParameter.STRENGTH,\n)"
+}
+----
+
+Two semantics worth calling out explicitly, because a caller that gets them
+wrong ends up in an unnecessary repair loop:
+
+* **An empty `principles` list (`"empty": true`) is a valid result, not a
+  failure.** Many cells of the classical 39x39 matrix are legitimately blank
+  -- see <<matrix>>.
+* **An unrecognized parameter is a structured `unknown_parameter` error with
+  suggestions, never a crash.** Call `list_engineering_parameters` first if
+  unsure of the exact symbol.
+
+kTRIZ is stateless across tool calls by design: every tool is a pure function
+over the fixed 39 parameters, 40 principles, and the immutable contradiction
+matrix, with no server-side session state to manage or leak.
+
 == Modules
 
 [cols="1,3"]
@@ -226,8 +331,11 @@ data source globally -- that is future work.
 | `ktriz-render-kuml`
 | Renders `functionModel { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` (layout only, no kUML metamodel/rendering dependency).
 
+| `ktriz-mcp`
+| MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` only -- no `ktriz-render-kuml`, no `ktriz-cli` wiring yet (see <<mcp>> and <<roadmap>>).
+
 | `ktriz-tests`
-| Kotest test suite for `ktriz-core`, `ktriz-render-kuml`, and the `ktriz-cli` placeholder.
+| Kotest test suite for `ktriz-core`, `ktriz-render-kuml`, `ktriz-mcp`, and the `ktriz-cli` placeholder.
 |===
 
 == Building
@@ -243,9 +351,9 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 
 * Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is partially done: `ContradictionMatrixData.parse(...)` exists as a public parsing entry point, but there is no discovery/configuration mechanism yet to swap `ContradictionMatrix`'s own data source at runtime.
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
+* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio. Not yet done: wiring it into `ktriz-cli` as a `ktriz mcp` subcommand (kSTEP's `kstep-mcp` follows the same "server module first, CLI subcommand later" order).
 * `*.ktriz.kts` Kotlin scripting host.
-* MCP server.
-* Real CLI commands, plus kotlin-logging-based logging once there is an actual process worth logging.
+* Real CLI commands (beyond the placeholder banner and the future `ktriz mcp` subcommand above), plus kotlin-logging-based logging for those commands once there is an actual process worth logging.
 * `FunctionModel.renderSvg()` follow-ups, explicitly out of scope for V1: real font-metrics-based node sizing instead of the fixed 140x60 px box; arrowheads on edges; visual separation for multiple edges between the same component pair; a dedicated fixed-radius loop arc for self-loops instead of relying on whatever ELK's `elk.layered` self-loop strategy produces.
 
 == Licence
