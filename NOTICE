@@ -46,6 +46,18 @@ six-field taxonomy, never the later MATCEMIB eight-field extension
 (Belski/Livotov/Mayer) or any other newer or differently attributed
 substance-field framework.
 
+The 5-class structure of Altshuller's 76 TRIZ standard solutions for
+Su-Field analysis -- 13 + 23 + 6 + 17 + 17 = 76 -- is sourced from the
+MATRIZ wiki's "Standard Inventive Solutions (SIS)" page, (c) MATRIZ, which
+states it is "distributed under the terms of the Creative Commons, which
+permits use, distribution, and reproduction in any medium, provided the
+original source is credited" (the page does not name a specific Creative
+Commons version). kTRIZ ships only this 5-class structure, not the 76
+individual solution texts, which remain a deliberately deferred future item
+pending a trustworthy primary source -- see
+docs/standard-solutions-provenance.adoc for the full sourcing record and
+the sources evaluated and rejected.
+
 Note that "public domain by goodwill" is a community consensus, not a formal
 licence grant (there is no CC0 dedication). A concrete digitised
 transcription of the matrix may separately attract an EU sui generis

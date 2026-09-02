@@ -229,10 +229,31 @@ structurally complete triangle to judge in the first place. A malformed
 combination throws `IllegalArgumentException` with a message naming both the
 declared quality and which slot is missing or unexpectedly present.
 
-NOTE: This wave ships the core `SuField` data model and `suField { }` DSL
-only. The 76 standard solutions (as a lookup keyed on `SuFieldQuality` and
-`FieldType`), SVG rendering of the S1-S2-Field triangle, and an MCP tool are
-explicitly out of scope here and left to later waves (see kTRIZ-ADR-0001).
+NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
+and `StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
+solutions -- see below). The 76 individual solution texts themselves, a
+lookup engine keyed on `SuFieldQuality`/`FieldType`, SVG rendering of the
+S1-S2-Field triangle, and an MCP tool are explicitly out of scope here and
+left to later waves (see kTRIZ-ADR-0001 and
+link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]).
+
+`StandardSolutionClass` carries the 5-class structure only -- id, English/
+German label, a one-sentence description, and a solution count per class
+(13/23/6/17/17, summing to 76):
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.StandardSolutionClass
+
+val cls = StandardSolutionClass.ofId(1)
+println("${cls.labelEn} (${cls.solutionCount} solutions)")
+----
+
+Expected output:
+
+----
+Building and destruction of Su-Fields (13 solutions)
+----
 
 [#the-compiler-as-oracle]
 == The compiler as oracle
@@ -652,9 +673,12 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 * Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset, `BOW_SPACING_PX = 9` px between adjacent edges' offsets clamped to `BOW_MAX_OFFSET_PX = +/-27` px, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking `+8` px per additional self-loop on the same node up to `SELF_LOOP_STACK_MAX_PX = 44` px) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are also vertically staggered (alternating above/below the route's midpoint) so they don't render on top of each other -- a known remaining limitation: for a component pair with many edges and long verbs, the staggered labels can still overlap a neighbouring node's box or each other, since this is a fixed-step stagger, not full collision-avoidance layout.
 * Substance-field models (Su-Field) -- *done* (core model + DSL), see
-  <<su-field>>. The 76 standard solutions as a lookup, SVG rendering of the
-  S1-S2-Field triangle, and an MCP tool are explicitly later waves
-  (kTRIZ-ADR-0001).
+  <<su-field>>. Standard solution classes -- *done* (5-class structure
+  only), see link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc];
+  the 76 individual solutions remain a deliberately deferred future item
+  pending a trustworthy primary source. A lookup engine over the 76
+  individual solutions, SVG rendering of the S1-S2-Field triangle, and an
+  MCP tool for Su-Field are still explicitly later waves (kTRIZ-ADR-0001).
 
 == Licence
 
