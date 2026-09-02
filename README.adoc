@@ -4,12 +4,13 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is in very early, pre-release development (M1, wave 5). The
+WARNING: kTRIZ is in very early, pre-release development (M1, wave 6). The
 core contradiction spine, the function model and SVG rendering for the
 function model exist, the contradiction matrix is fully populated with the
-classical 39x39 table (1248 cells, see <<matrix>>), and an MCP server exposes
-it all to LLM agents (see <<mcp>>). There is no `*.ktriz.kts` scripting host,
-no real CLI commands, and no published artifact. The API is unstable.
+classical 39x39 table (1248 cells, see <<matrix>>), an MCP server exposes
+it all to LLM agents (see <<mcp>>), and a `*.ktriz.kts` scripting host is
+usable via `ktriz run` (see <<scripting>>). `ktriz run` exists; no `ktriz mcp`
+subcommand yet, and no published artifact. The API is unstable.
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -55,17 +56,23 @@ What works today:
 * An MCP server (module `ktriz-mcp`) exposing the 39 parameters, the 40
   principles, the deterministic matrix lookup, and TRIZ function-model
   validation as tools over stdio, for LLM agents (see <<mcp>>).
-* 121 Kotest test cases covering the above.
+* A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`,
+  `KtrizScriptHost.eval`/`evalSource`) that compiles and runs a script with
+  `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope by default, mapping every
+  outcome -- success, compile error, runtime error -- into a structured
+  `KtrizScriptOutcome` with a stable `KTRIZ-S-xxx` code, never a raw exception
+  or stack trace. Exposed on the command line as `ktriz run` (see <<scripting>>).
+* 193 Kotest test cases covering the above.
 
-What does not exist yet: a `*.ktriz.kts` scripting host, a CLI subcommand
-wiring `ktriz-mcp` into `ktriz-cli`, and any other real CLI command
-(`ktriz-cli` currently prints a placeholder banner only). See <<roadmap>>.
+What does not exist yet: a CLI subcommand wiring `ktriz-mcp` into `ktriz-cli`
+(`ktriz mcp`), and a way to call `FunctionModel.renderSvg()` from inside a
+script. See <<roadmap>>.
 
 [#hello-world]
 == Hello World
 
-kTRIZ has no scripting host yet (see <<roadmap>>), so this is plain Kotlin,
-not a `.ktriz.kts` script:
+This first example is plain Kotlin; the equivalent as a `.ktriz.kts` script
+is shown in <<scripting>>.
 
 [source,kotlin]
 ----
@@ -181,12 +188,139 @@ mistake shows up as an ordinary Kotlin compiler error rather than as a subtly
 wrong recommendation:
 
 ----
-error: unresolved reference: STRUCTURAL_INTEGRITY
+Unresolved reference 'STRUCTURAL_INTEGRITY'.
 ----
 
 That error message is itself a repair signal a generate-compile-repair loop
 can act on -- there is no such thing as a plausible-looking but wrong
 parameter name in kTRIZ, because parameters that do not exist do not compile.
+<<scripting,Below>>, the same error appears in its fully structured form, as
+`ktriz run` reports it via a `KtrizScriptOutcome.CompilationError` with the
+line/column the diagnostic points at -- the shape a generate-compile-repair
+loop actually consumes, not just the raw compiler text.
+
+[#scripting]
+== Running a `.ktriz.kts` script
+
+The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`
+and `dev.ktriz.function.*` are in scope by default -- no import needed, though
+writing one explicitly (as below) is harmless.
+
+=== Build & run
+
+`./gradlew clean check` (see <<building>>) does not produce a `ktriz`
+executable -- build the CLI's install image explicitly, then run it directly:
+
+[source,shell]
+----
+./gradlew clean :ktriz-cli:installDist
+./ktriz-cli/build/install/ktriz/bin/ktriz run hello-world.ktriz.kts
+----
+
+Note the install directory is named `ktriz`, not `ktriz-cli`
+(`ktriz-cli/build/install/*ktriz*/bin/ktriz`) -- `ktriz-cli/build.gradle.kts`
+sets `applicationName = "ktriz"` explicitly so the binary and its `ktriz run`/
+`ktriz help` subcommands read naturally, so this does *not* follow the
+`<module>/build/install/<module>/bin/<module>` pattern <<mcp,`ktriz-mcp`
+below>> uses. The `$ ktriz ...` examples below assume that binary is on your
+`PATH` (e.g. via a symlink).
+
+[source,kotlin]
+----
+// hello-world.ktriz.kts
+val problem = contradiction(
+    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
+    worsening = EngineeringParameter.STRENGTH,
+)
+val principles = problem.resolve()
+
+println("Widerspruch: ${problem.improving.labelDe} ↑  vs.  ${problem.worsening.labelDe} ↓")
+println("Empfohlene erfinderische Prinzipien:")
+principles.forEach { p -> println("  #${p.id}  ${p.labelDe}  (${p.labelEn})") }
+----
+
+[source,shell]
+----
+$ ktriz run hello-world.ktriz.kts
+Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓
+Empfohlene erfinderische Prinzipien:
+  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)
+  #27  Billige Kurzlebigkeit  (Cheap short-living objects)
+  #18  Mechanische Schwingungen  (Mechanical vibration)
+  #40  Verbundwerkstoffe  (Composite materials)
+----
+
+In text mode the script's own `println` output goes straight to stdout, exit
+code `0`. Add `--output json` for a single structured JSON document instead --
+`ktriz run` captures the script's stdout for you and puts it in the `"stdout"`
+field, rather than mixing it into the surrounding JSON:
+
+[source,shell]
+----
+$ ktriz run hello-world.ktriz.kts --output json
+{"status":"success","returnType":null,"stdout":"Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓\nEmpfohlene erfinderische Prinzipien:\n  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)\n  #27  Billige Kurzlebigkeit  (Cheap short-living objects)\n  #18  Mechanische Schwingungen  (Mechanical vibration)\n  #40  Verbundwerkstoffe  (Composite materials)\n"}
+----
+
+The `STRUCTURAL_INTEGRITY` case from <<the-compiler-as-oracle,above>> is the
+concrete generate-compile-repair signal: a `worsening = ... STRUCTURAL_INTEGRITY`
+that does not exist among the 39 parameters fails to compile, and `ktriz run`
+reports it structured rather than as a raw stack trace:
+
+[source,shell]
+----
+$ ktriz run bogus-parameter.ktriz.kts
+Script failed to compile:
+  [ERROR] (line 10, column 38) Unresolved reference 'STRUCTURAL_INTEGRITY'.
+
+$ ktriz run bogus-parameter.ktriz.kts --output json
+{"status":"error","errorKind":"compilation_error","code":"KTRIZ-S-001","diagnostics":[{"severity":"ERROR","message":"Unresolved reference 'STRUCTURAL_INTEGRITY'.","line":10,"column":38}]}
+----
+
+Both exit `1`. A generate-compile-repair loop consuming the JSON form reads
+`errorKind`/`code` to branch on the failure kind and `diagnostics[].message`
+to feed back to the model, without parsing free-text output.
+
+A second, complementary TDG layer sits at runtime rather than compile time: a
+parameter *can* contradict itself syntactically (`worsening` given the same
+enum member as `improving`), so `Contradiction`'s `init` block enforces that
+invariant with `require`, and `ktriz run` reports the resulting
+`IllegalArgumentException` the same structured way:
+
+[source,shell]
+----
+$ ktriz run self-contradiction.ktriz.kts
+Script threw at runtime (java.lang.IllegalArgumentException): A contradiction needs two *different* parameters, but both were 'Strength'. A parameter cannot contradict itself.
+----
+
+WARNING: A `.ktriz.kts` script is arbitrary Kotlin and runs with **no
+sandbox** -- the full rights of the invoking user, the same trust level as
+`kotlinc -script` or a `build.gradle.kts` you run locally. `ktriz run` never
+resolves a script over the network (a path that looks like a URI, e.g.
+`https://...` or `file://...`, is rejected outright, see `SOURCE_REMOTE_URI`
+below) and rejects a script file over 1 MiB (`SOURCE_TOO_LARGE`) as a
+denial-of-service leitplanke -- neither of those is a sandbox, and a script
+within those limits may do anything a trusted local process can do. Only run
+scripts you trust.
+
+[cols="1,3"]
+|===
+| `KtrizScriptOutcome` case | Meaning
+
+| `Success`
+| Compiled and ran without throwing. `returnValue`/`returnTypeName` are `null` when the script's last expression was `Unit` (the normal shape for a `println`-based script) -- that is *not* a failure.
+
+| `CompilationError` (`KTRIZ-S-001`)
+| Syntax, type, or unresolved-reference error. `diagnostics` holds at least one `"ERROR"`-severity entry with the message/line/column.
+
+| `RuntimeError` (`KTRIZ-S-002`)
+| The script threw at runtime. Carries only the exception class and message, never a stack trace.
+
+| `NotEvaluated` (`KTRIZ-S-003`)
+| The scripting host returned no result at all.
+
+| `SourceRejected` (`KTRIZ-S-010`..`KTRIZ-S-015`)
+| The `.ktriz.kts` file was rejected before anything compiled or ran: a blank path, a URI-shaped path, a missing file, a non-regular file, an unreadable file, or a file over the 1 MiB limit.
+|===
 
 [#matrix]
 == Contradiction matrix data
@@ -325,8 +459,11 @@ matrix, with no server-side session state to manage or leak.
 | `ktriz-core`
 | The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `functionModel`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library.
 
+| `ktriz-script`
+| The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
+
 | `ktriz-cli`
-| Placeholder command-line entry point. No commands implemented yet.
+| Command-line entry point. `ktriz run <script.ktriz.kts> [--output json]` (see <<scripting>>); `ktriz help`. No `ktriz mcp` subcommand yet.
 
 | `ktriz-render-kuml`
 | Renders `functionModel { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` (layout only, no kUML metamodel/rendering dependency).
@@ -335,9 +472,10 @@ matrix, with no server-side session state to manage or leak.
 | MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` only -- no `ktriz-render-kuml`, no `ktriz-cli` wiring yet (see <<mcp>> and <<roadmap>>).
 
 | `ktriz-tests`
-| Kotest test suite for `ktriz-core`, `ktriz-render-kuml`, `ktriz-mcp`, and the `ktriz-cli` placeholder.
+| Kotest test suite for `ktriz-core`, `ktriz-script`, `ktriz-render-kuml`, `ktriz-mcp`, and `ktriz-cli`.
 |===
 
+[#building]
 == Building
 
 Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
@@ -347,13 +485,14 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 ./gradlew clean check
 ----
 
+[#roadmap]
 == Roadmap
 
 * Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is partially done: `ContradictionMatrixData.parse(...)` exists as a public parsing entry point, but there is no discovery/configuration mechanism yet to swap `ContradictionMatrix`'s own data source at runtime.
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
 * MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, and `build_function_model` over stdio. Not yet done: wiring it into `ktriz-cli` as a `ktriz mcp` subcommand (kSTEP's `kstep-mcp` follows the same "server module first, CLI subcommand later" order).
-* `*.ktriz.kts` Kotlin scripting host.
-* Real CLI commands (beyond the placeholder banner and the future `ktriz mcp` subcommand above), plus kotlin-logging-based logging for those commands once there is an actual process worth logging.
+* `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
+* Real CLI commands -- `ktriz run` is *done* (see <<scripting>>). Not yet done: a `ktriz mcp` subcommand wiring `ktriz-mcp` into `ktriz-cli` (see the MCP-server bullet above), and a way to call `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script (deliberately left out of this wave's scope -- would need `ktriz-render-kuml`, which pulls in ELK, on the script compile classpath).
 * `FunctionModel.renderSvg()` follow-ups, explicitly out of scope for V1: real font-metrics-based node sizing instead of the fixed 140x60 px box; arrowheads on edges; visual separation for multiple edges between the same component pair; a dedicated fixed-radius loop arc for self-loops instead of relying on whatever ELK's `elk.layered` self-loop strategy produces.
 
 == Licence

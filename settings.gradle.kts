@@ -19,6 +19,7 @@ dependencyResolutionManagement {
 
 include(
     "ktriz-core",
+    "ktriz-script",
     "ktriz-cli",
     "ktriz-render-kuml",
     "ktriz-mcp",

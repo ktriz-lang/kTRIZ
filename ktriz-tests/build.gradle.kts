@@ -10,9 +10,11 @@ kotlin {
 dependencies {
     implementation(project(":ktriz-core"))
     implementation(project(":ktriz-render-kuml"))
-    // Nur damit CliPlaceholderTest den Platzhalter-Einstiegspunkt aufrufen kann.
+    // Fuer CliMainTest (resolveCommand/USAGE_TEXT) und die ktriz-cli-installDist-Verifikation.
     implementation(project(":ktriz-cli"))
     implementation(project(":ktriz-mcp"))
+    // Fuer KtrizScriptHostTest/KtrizScriptHelloWorldTest.
+    implementation(project(":ktriz-script"))
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.mcp.kotlin.sdk.server)
