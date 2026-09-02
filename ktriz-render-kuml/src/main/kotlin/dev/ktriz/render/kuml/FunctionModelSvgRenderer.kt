@@ -61,9 +61,9 @@ public fun FunctionModel.renderSvg(): String {
     }
 
     val result = ElkLayoutEngine().layout(graph = toLayoutGraph(), hints = LayoutHints.DEFAULT)
-    val bases = computeEdgeBases(result)
-    val body = renderBody(result, bases)
-    val bounds = canvasBoundsFor(result, bases)
+    val geometry = computeEdgeBases(result)
+    val body = renderBody(result, geometry)
+    val bounds = canvasBoundsFor(result, geometry)
     val positionedBody =
         if (bounds.offsetX > 0f || bounds.offsetY > 0f) {
             """<g transform="translate(${bounds.offsetX},${bounds.offsetY})">$body</g>"""
@@ -74,20 +74,41 @@ public fun FunctionModel.renderSvg(): String {
 }
 
 /**
- * The canvas size actually needed to fit every rendered edge point without clipping, plus the
- * `<g transform="translate(...)">` offset required if any point falls outside ELK's own
- * `result.canvas` on any side. Self-loops and bowed multi-edges are drawn from [bases], not from
- * ELK's raw routes, so their geometry can legitimately extend beyond the canvas ELK computed for
- * the unmodified layout -- on any of the four sides, not just to the right (a self-loop bulges
- * right, but a bowed multi-edge's perpendicular offset can push points left, above, or below
- * just as easily, depending on the pair's layout orientation). [CANVAS_MARGIN_PX] is applied on
- * every side that actually needs widening, so a point never lands exactly on the SVG edge.
+ * The canvas size actually needed to fit every rendered edge point *and* every edge verb label
+ * without clipping, plus the `<g transform="translate(...)">` offset required if any of them
+ * falls outside ELK's own `result.canvas` on any side. Self-loops and bowed multi-edges are
+ * drawn from [bases], not from ELK's raw routes, so their geometry can legitimately extend
+ * beyond the canvas ELK computed for the unmodified layout -- on any of the four sides, not just
+ * to the right (a self-loop bulges right, but a bowed multi-edge's perpendicular offset can push
+ * points left, above, or below just as easily, depending on the pair's layout orientation).
+ * Edge-point geometry alone is not enough, though: a verb label is drawn centered
+ * (`text-anchor="middle"`) at its route's midpoint with no relation to any rendered point's
+ * coordinates, so a self-loop or edge whose midpoint sits near a canvas edge can still have its
+ * *label* clip even when every path/polygon point is comfortably inside -- see this file's git
+ * history for the "wears" self-loop label this was caught against by manual visual inspection
+ * (automated point-coordinate tests never render text, so they could not have caught it).
+ * [CANVAS_MARGIN_PX] is applied on every side that actually needs widening, so nothing lands
+ * exactly on the SVG edge.
  */
 private fun FunctionModel.canvasBoundsFor(
     result: LayoutResult,
-    bases: Map<Int, List<Point>>,
+    geometry: EdgeGeometry,
 ): CanvasBounds {
-    val points = bases.values.flatten()
+    val edgePoints = geometry.bases.values.flatten()
+    val labelCorners =
+        edges.withIndex().flatMap { (index, edge) ->
+            val base = geometry.bases[index] ?: return@flatMap emptyList()
+            val labelY = labelBaselineY(base, geometry.labelStackIndex[index] ?: 0)
+            val mid = midpointOf(base)
+            val halfWidth = measuredEdgeLabelWidthPx(edge.verb) / 2f
+            // Label baseline sits at labelY (see renderEdge); pad upward by the font size for the
+            // glyphs' ascent above the baseline, since SVG text y is a baseline, not a box top.
+            listOf(
+                Point(x = mid.x - halfWidth, y = labelY - EDGE_LABEL_FONT_SIZE_PX),
+                Point(x = mid.x + halfWidth, y = labelY),
+            )
+        }
+    val points = edgePoints + labelCorners
     val minX = minOf(0f, (points.minOfOrNull { it.x } ?: 0f) - CANVAS_MARGIN_PX)
     val minY = minOf(0f, (points.minOfOrNull { it.y } ?: 0f) - CANVAS_MARGIN_PX)
     val maxX = maxOf(result.canvas.width, (points.maxOfOrNull { it.x } ?: 0f) + CANVAS_MARGIN_PX)
@@ -105,19 +126,32 @@ private data class CanvasBounds(
 )
 
 /**
- * For every edge, the finished *base* geometry its stroke style and arrowhead are derived from:
- * a self-loop gets its own circular arc ([selfLoopPolyline], ELK's route for that edge is
- * discarded); any other edge keeps its raw ELK route unless two or more edges connect the same
- * unordered component pair, in which case all of them are resampled to an even point spacing
- * and bowed apart ([resampleEvenlyByArcLength] + [bowOffset]) so they stay individually
- * visible instead of overlapping. A lone edge between a pair is returned unresampled, on
- * purpose -- see `EdgeGeometry.kt`'s `resampleEvenlyByArcLength` KDoc for why that distinction
+ * [bases]: for every edge, the finished *base* geometry its stroke style and arrowhead are
+ * derived from. [labelStackIndex]: for every edge, its 0-based position within its label-sharing
+ * group (all self-loops on the same component, or all edges between the same unordered component
+ * pair) -- 0 for an edge that is the only member of its group. Both maps share the same keyset
+ * (every edge with a non-degenerate route) and the same per-group ordering, computed once here so
+ * [renderBody]'s per-edge label vertical stagger ([labelBaselineY]) lines up with the geometry
+ * that produced the bow/loop [bases] entry it labels.
+ */
+private data class EdgeGeometry(
+    val bases: Map<Int, List<Point>>,
+    val labelStackIndex: Map<Int, Int>,
+)
+
+/**
+ * Computes [EdgeGeometry.bases]: a self-loop gets its own circular arc ([selfLoopPolyline], ELK's
+ * route for that edge is discarded); any other edge keeps its raw ELK route unless two or more
+ * edges connect the same unordered component pair, in which case all of them are resampled to an
+ * even point spacing and bowed apart ([resampleEvenlyByArcLength] + [bowOffset]) so they stay
+ * individually visible instead of overlapping. A lone edge between a pair is returned unresampled,
+ * on purpose -- see `EdgeGeometry.kt`'s `resampleEvenlyByArcLength` KDoc for why that distinction
  * matters for an existing test.
  *
  * Grouping is O(E): a single `groupBy` scan per edge kind, never an `indexOf()` lookup inside a
  * loop -- important so a pathologically large multi-edge group does not become quadratic.
  */
-private fun FunctionModel.computeEdgeBases(result: LayoutResult): Map<Int, List<Point>> {
+private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
     val selfLoopK = HashMap<Int, Int>()
     edges
         .withIndex()
@@ -166,17 +200,52 @@ private fun FunctionModel.computeEdgeBases(result: LayoutResult): Map<Int, List<
                 }
         }
     }
-    return out
+    // selfLoopK and pairK key-sets are disjoint (an edge is either a self-loop or not), and both
+    // only ever assign to indices also present in `out` -- edges dropped above (degenerate route,
+    // missing node bounds) simply have no entry in `out` and are skipped by every out[index]-keyed
+    // consumer below, so a stale selfLoopK/pairK entry for a dropped edge is harmless dead data.
+    return EdgeGeometry(bases = out, labelStackIndex = selfLoopK + pairK)
+}
+
+/**
+ * The verb label's SVG text baseline y for an edge at [stackIndex] within its label-sharing
+ * group: [EDGE_LABEL_BASE_OFFSET_PX] above the route's arc-length midpoint for a solo edge
+ * (`stackIndex == 0`), every further member of the group staggered
+ * [EDGE_LABEL_STACK_STEP_PX] further away, alternating *above and below* the midpoint (1 up,
+ * 2 down, 3 further up, 4 further down, ...) rather than piling every label on one side --
+ * for a group of size `n` this roughly halves the tallest single-direction excursion compared
+ * to a one-directional staircase, which otherwise grows unbounded with group size and can climb
+ * into a neighbouring node's box for a wide multi-edge group between two closely stacked nodes
+ * (a known remaining limitation for very large groups with long verbs, documented in the README;
+ * full label-collision avoidance -- e.g. shrinking the step or routing a leader line -- is out
+ * of scope for this wave).
+ *
+ * Multiple edges between the same pair already bow apart so their *lines* stay individually
+ * visible (see [computeEdgeBases]), but their verb labels are drawn at the same, undisplaced
+ * midpoint height on the route between two nodes -- without this stagger they visually collide
+ * regardless of how far apart the lines themselves bow, since text width usually exceeds the bow
+ * spacing. A self-loop's single label needs no stagger from its own group unless multiple
+ * self-loops share the same component, in which case the same staircase applies.
+ */
+private fun labelBaselineY(
+    base: List<Point>,
+    stackIndex: Int,
+): Float {
+    if (stackIndex == 0) return midpointOf(base).y - EDGE_LABEL_BASE_OFFSET_PX
+    val level = (stackIndex + 1) / 2
+    val sign = if (stackIndex % 2 == 1) -1f else 1f
+    return midpointOf(base).y - EDGE_LABEL_BASE_OFFSET_PX + sign * level * EDGE_LABEL_STACK_STEP_PX
 }
 
 private fun FunctionModel.renderBody(
     result: LayoutResult,
-    bases: Map<Int, List<Point>>,
+    geometry: EdgeGeometry,
 ): String =
     buildString {
         edges.forEachIndexed { index, edge ->
-            val base = bases[index] ?: return@forEachIndexed
-            append(renderEdge(edge, base))
+            val base = geometry.bases[index] ?: return@forEachIndexed
+            val stackIndex = geometry.labelStackIndex[index] ?: 0
+            append(renderEdge(edge, base, stackIndex))
         }
         result.nodes.forEach { (nodeId, nodeLayout) ->
             append(renderNode(nodeId, nodeLayout.bounds))
@@ -204,6 +273,7 @@ private fun renderNode(
 private fun renderEdge(
     edge: FunctionEdge,
     base: List<Point>,
+    labelStackIndex: Int,
 ): String {
     val style = edge.quality.strokeStyle()
     val paths: List<List<Point>> =
@@ -229,8 +299,9 @@ private fun renderEdge(
     val arrow = arrowheadPoints(base).toSvgPolygonPoints()
     val arrowTag = """<polygon points="$arrow" fill="$EDGE_STROKE_COLOR"/>"""
     val mid = midpointOf(base)
+    val labelY = labelBaselineY(base, labelStackIndex)
     val label =
-        """<text x="${mid.x}" y="${mid.y - 4}" text-anchor="middle" font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX">${xmlEscapeText(
+        """<text x="${mid.x}" y="$labelY" text-anchor="middle" font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX">${xmlEscapeText(
             edge.verb,
         )}</text>"""
     return pathTags + arrowTag + label

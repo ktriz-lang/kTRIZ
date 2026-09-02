@@ -26,6 +26,8 @@ internal const val SELF_LOOP_SAMPLES = 24
 internal const val SELF_LOOP_EXIT_FRACTION = 0.30f
 internal const val SELF_LOOP_RETURN_FRACTION = 0.70f
 internal const val CANVAS_MARGIN_PX = 4f
+internal const val EDGE_LABEL_BASE_OFFSET_PX = 4f
+internal const val EDGE_LABEL_STACK_STEP_PX = 13f
 
 /**
  * Flattens any [EdgeRoute] into an ordered polyline from source to target, waypoints

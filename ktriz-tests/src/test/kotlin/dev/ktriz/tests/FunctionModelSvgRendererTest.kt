@@ -451,6 +451,61 @@ class FunctionModelSvgRendererTest :
             labelPositions shouldHaveSize 3
         }
 
+        "labels of edges sharing a component pair are staggered so they don't all sit at the same height" {
+            // Regression guard for a bug found by manual visual inspection, not by the existing
+            // "distinct midpoints" test below: that test only asserts the (x, y) label position
+            // *pairs* are distinct, which the multi-edge bow already guaranteed via x alone on a
+            // vertical route -- it did not catch that all three labels rendered at the *same y*,
+            // which is what actually made them visually overlap (text width exceeds the bow's
+            // few-pixel horizontal spacing).
+            val fm =
+                functionModel {
+                    val a = component("A")
+                    val b = component("B")
+                    useful(from = a, to = b, verb = "aaa")
+                    harmful(from = a, to = b, verb = "bbb")
+                    insufficient(from = a, to = b, verb = "ccc")
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val ys =
+                doc
+                    .elementsByTag("text")
+                    .filter { it.textContent in setOf("aaa", "bbb", "ccc") }
+                    .map { it.getAttribute("y").toDouble() }
+
+            ys.toSet() shouldHaveSize 3
+        }
+
+        "a self-loop's verb label stays within the canvas even when the loop sits at the node's right edge" {
+            // Regression guard for the bug this wave's manual visual inspection actually caught:
+            // canvasBoundsFor originally widened the canvas to fit every rendered *point*
+            // (path/polygon coordinates) but not the verb label text drawn at each edge's
+            // midpoint with text-anchor="middle" -- a self-loop's label sits at the loop's
+            // rightmost point, so half its rendered width extended past the canvas edge and was
+            // clipped, invisible in any viewer that respects the SVG viewBox. No coordinate-only
+            // test could have caught this; it requires knowing the label's actual rendered width.
+            val fm =
+                functionModel {
+                    val turbine = component("Turbine")
+                    useful(from = turbine, to = turbine, verb = "wears")
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val svgWidth = doc.documentElement.getAttribute("width").toDouble()
+            val label = doc.elementsByTag("text").single { it.textContent == "wears" }
+            val labelX = label.getAttribute("x").toDouble()
+
+            // Measured independently of the renderer's own (internal, cross-module-invisible)
+            // font-metrics helper, using the same public JDK API at the same font/size it uses.
+            val font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12)
+            val frc = java.awt.font.FontRenderContext(null, true, true)
+            val halfWidth = font.getStringBounds("wears", frc).width / 2.0
+
+            (labelX + halfWidth) shouldBeLessThan svgWidth
+            (labelX - halfWidth) shouldBeGreaterThan 0.0
+        }
+
         "a single edge between a component pair is unaffected by the multi-edge bow" {
             val fm =
                 functionModel {

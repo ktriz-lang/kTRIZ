@@ -34,12 +34,29 @@ private val measureFont: Font by lazy {
     headlessInit
     Font(Font.SANS_SERIF, Font.PLAIN, NODE_FONT_SIZE_PX.toInt())
 }
+
+/** Same rationale as [measureFont], but at [EDGE_LABEL_FONT_SIZE_PX] -- edge verb labels render smaller than node names. */
+private val edgeLabelMeasureFont: Font by lazy {
+    headlessInit
+    Font(Font.SANS_SERIF, Font.PLAIN, EDGE_LABEL_FONT_SIZE_PX.toInt())
+}
 private val frc = FontRenderContext(null, true, true)
 
 /** Measured width of [text] in px at [NODE_FONT_SIZE_PX], `Font.SANS_SERIF`, `PLAIN`. */
 internal fun measuredTextWidthPx(text: String): Float {
     val capped = if (text.length > MAX_MEASURED_CHARS) text.take(MAX_MEASURED_CHARS) else text
     return measureFont.getStringBounds(capped, frc).width.toFloat()
+}
+
+/**
+ * Measured width of [text] in px at [EDGE_LABEL_FONT_SIZE_PX] -- used to keep an edge verb
+ * label's rendered extent (it is drawn with `text-anchor="middle"` at the route's midpoint, not
+ * node-boxed like a component name) inside the canvas bounds. See
+ * `FunctionModelSvgRenderer.kt`'s `canvasBoundsFor`.
+ */
+internal fun measuredEdgeLabelWidthPx(text: String): Float {
+    val capped = if (text.length > MAX_MEASURED_CHARS) text.take(MAX_MEASURED_CHARS) else text
+    return edgeLabelMeasureFont.getStringBounds(capped, frc).width.toFloat()
 }
 
 private fun ceilToGrid(
