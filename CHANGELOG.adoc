@@ -6,8 +6,16 @@ without a deprecation period.
 
 == Unreleased
 
+== v0.2.0 -- 2026-09-06
+
 === Substance-field models
 
+* `StandardSolutionClass` (module `ktriz-core`) enumerates the 5 classical
+  groups the 76 standard inventive solutions fall into (13/23/6/17/17), each
+  with an English/German label, description and `solutionCount`. Sourced
+  from the MATRIZ wiki's CC-licensed classification -- a stable, low-detail
+  primary source found after two weaker full-76-text candidates were
+  researched and rejected (see `docs/standard-solutions-provenance.adoc`).
 * `StandardSolution` (module `ktriz-core`) enumerates the 76 individual
   classical TRIZ standard solutions -- classical dot-numbered code (e.g.
   `"1.1.1"`), owning `StandardSolutionClass`, and a short English "what to
@@ -17,7 +25,8 @@ without a deprecation period.
   matrix; see `docs/standard-solutions-provenance.adoc` for the full
   sourcing record and caveats (including the `5.1.1` numbering anomaly).
   As with `StandardSolutionClass`, there is deliberately no bridge function
-  from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`.
+  from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`, and
+  `StandardSolution.ofCode(...)` is not yet exposed as its own MCP tool.
 * `SuField.renderSvg()` (module `ktriz-render-kuml`) renders a `suField { }`
   model to a standalone SVG document: the classical S1-S2-Field triangle,
   F at the apex, S1 bottom-left, S2 bottom-right, action reading
@@ -40,6 +49,22 @@ without a deprecation period.
   escaping -- closes a latent defect shared by both SVG renderers where a
   component/substance name containing such a character produced an
   unparseable document.
+
+=== AI tooling
+
+* Three new MCP tools in `ktriz-mcp`, mirroring the existing
+  `build_function_model` pattern: `build_su_field` (validates through the
+  same `SuField` construction logic as the DSL, and returns a ready-to-use
+  `suField { }` Kotlin snippet in `structuredContent` on success),
+  `list_field_types` and `list_standard_solution_classes` (few-shot
+  catalogue tools). No `render_su_field_svg` MCP tool, for consistency with
+  `build_function_model` -- rendering stays CLI-/script-only.
+
+=== Project infrastructure
+
+* A GitHub Actions CI workflow (`.github/workflows/ci.yml`) runs
+  `./gradlew clean check` on every push/PR to `master` -- kTRIZ's first CI
+  pipeline.
 
 == v0.1.0 -- 2026-09-02
 

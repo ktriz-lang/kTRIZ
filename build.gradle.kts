@@ -5,5 +5,5 @@ plugins {
 
 allprojects {
     group = "dev.ktriz"
-    version = "0.1.0"
+    version = "0.2.0"
 }
