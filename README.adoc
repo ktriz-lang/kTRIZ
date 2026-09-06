@@ -77,7 +77,7 @@ What works today:
   substance S1, an optional second substance S2 acted on through an optional
   `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>), with
   SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>).
-* 339 Kotest test cases covering the above.
+* 345 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
