@@ -1,9 +1,11 @@
 package dev.ktriz.render.kuml
 
+import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import java.awt.Font
 import java.awt.font.FontRenderContext
 import kotlin.math.ceil
+import kotlin.math.max
 import kotlin.math.min
 
 internal const val NODE_FONT_FAMILY = "sans-serif"
@@ -105,3 +107,57 @@ internal fun displayTextFor(
     val fitted = if (lo == 0) "…" else name.take(lo) + "…"
     return DisplayText(fitted, truncated = true)
 }
+
+/**
+ * An axis-aligned bounding box in SVG canvas coordinates, used to detect overlap between
+ * rendered edge-verb labels and between a label and a node's `<rect>`. [FunctionModelSvgRenderer]'s
+ * `placeEdgeLabels` greedily searches candidate label positions and picks the one with the least
+ * total [overlapAreaWith] against every box already placed.
+ */
+internal data class LabelBox(
+    val minX: Float,
+    val minY: Float,
+    val maxX: Float,
+    val maxY: Float,
+) {
+    /** This box grown by [padPx] on every side -- used to keep a small visual gap between labels/nodes, not just avoid literal pixel touching. */
+    fun inflate(padPx: Float): LabelBox = LabelBox(minX - padPx, minY - padPx, maxX + padPx, maxY + padPx)
+
+    /** True if `this` and [other] share any area (touching edges alone do not count as overlap). */
+    fun overlaps(other: LabelBox): Boolean =
+        minX < other.maxX && maxX > other.minX && minY < other.maxY && maxY > other.minY
+
+    /** Area of the intersection rectangle between `this` and [other], `0f` if they don't overlap. */
+    fun overlapAreaWith(other: LabelBox): Float {
+        val ox = (min(maxX, other.maxX) - max(minX, other.minX)).coerceAtLeast(0f)
+        val oy = (min(maxY, other.maxY) - max(minY, other.minY)).coerceAtLeast(0f)
+        return ox * oy
+    }
+}
+
+/**
+ * The true bounding box of [text] rendered at [EDGE_LABEL_FONT_SIZE_PX] with `text-anchor="middle"`
+ * at ([centerX], [baselineY]) -- uses [Font.getStringBounds]'s real ascent/descent instead of the
+ * old flat [EDGE_LABEL_FONT_SIZE_PX] approximation this module used to apply for canvas sizing.
+ * [Font.getStringBounds]'s `bounds.y` is negative (the ascent, measured upward from the baseline);
+ * `bounds.height` is ascent + descent.
+ */
+internal fun edgeLabelBoxAt(
+    text: String,
+    centerX: Float,
+    baselineY: Float,
+): LabelBox {
+    val capped = if (text.length > MAX_MEASURED_CHARS) text.take(MAX_MEASURED_CHARS) else text
+    val bounds = edgeLabelMeasureFont.getStringBounds(capped, frc)
+    val halfWidth = bounds.width.toFloat() / 2f
+    val top = baselineY + bounds.y.toFloat()
+    return LabelBox(
+        minX = centerX - halfWidth,
+        maxX = centerX + halfWidth,
+        minY = top,
+        maxY = top + bounds.height.toFloat(),
+    )
+}
+
+/** This node/canvas [Rect] as a [LabelBox], for overlap checks against edge-verb labels. */
+internal fun Rect.toLabelBox(): LabelBox = LabelBox(origin.x, origin.y, origin.x + size.width, origin.y + size.height)

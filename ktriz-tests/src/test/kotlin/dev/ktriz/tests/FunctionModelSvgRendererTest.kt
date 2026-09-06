@@ -29,6 +29,22 @@ private fun Document.elementsByTag(tag: String): List<Element> {
     return (0 until nodeList.length).map { nodeList.item(it) as Element }
 }
 
+/**
+ * The (x, y) offset of the top-level `<g transform="translate(x,y)">` wrapper renderSvg() emits
+ * around the body when any rendered geometry needed the canvas widened to the left/top of ELK's
+ * own layout -- (0, 0) if no such wrapper is present. Every `<path>`/`<polygon>`/`<text>`
+ * coordinate elsewhere in the document is expressed in the *pre-translate* coordinate space, so a
+ * test that wants to know whether a point falls inside the SVG's own `viewBox` (which describes
+ * the *post-translate*, final rendered space) must add this offset back in first -- checking raw
+ * coordinates against `[0, width] x [0, height]` directly is only valid when this offset is zero.
+ */
+private fun Document.groupTranslateOffset(): Pair<Double, Double> {
+    val g = elementsByTag("g").firstOrNull { it.hasAttribute("transform") } ?: return 0.0 to 0.0
+    val m = Regex("translate\\((-?[0-9.]+),(-?[0-9.]+)\\)").find(g.getAttribute("transform")) ?: return 0.0 to 0.0
+    val (tx, ty) = m.destructured
+    return tx.toDouble() to ty.toDouble()
+}
+
 class FunctionModelSvgRendererTest :
     StringSpec({
         "renderSvg produces a document that parses as well-formed XML with an svg root" {
@@ -472,13 +488,20 @@ class FunctionModelSvgRendererTest :
             labelPositions shouldHaveSize 3
         }
 
-        "labels of edges sharing a component pair are staggered so they don't all sit at the same height" {
-            // Regression guard for a bug found by manual visual inspection, not by the existing
-            // "distinct midpoints" test below: that test only asserts the (x, y) label position
-            // *pairs* are distinct, which the multi-edge bow already guaranteed via x alone on a
-            // vertical route -- it did not catch that all three labels rendered at the *same y*,
-            // which is what actually made them visually overlap (text width exceeds the bow's
-            // few-pixel horizontal spacing).
+        "labels of edges sharing a component pair don't visually overlap" {
+            // Regression guard for a bug originally found by manual visual inspection: three
+            // labels sharing a component pair used to render at the *same y* regardless of
+            // whether their (bow-separated) x positions already kept them apart, which is what
+            // actually made them visually overlap (text width exceeding the bow's few-pixel
+            // spacing). The fix (this wave) replaced the old "always stagger by index" heuristic
+            // with an actual collision-aware placement -- so the correct invariant to check now
+            // is "no real overlap", not "always distinct y": these three short verbs' bow
+            // separation is comfortably wider than their measured text width, so it is
+            // legitimate (and better -- least unnecessary displacement, Rams' "as little design
+            // as possible") for the placer to leave them all at their natural, unstaggered
+            // baseline. Overlap is recomputed independently here via the same public JDK
+            // font-metrics API the renderer uses internally, kept black-box like the rest of
+            // this file.
             val fm =
                 functionModel {
                     val a = component("A")
@@ -489,13 +512,41 @@ class FunctionModelSvgRendererTest :
                 }
 
             val doc = parseSvg(fm.renderSvg())
-            val ys =
-                doc
-                    .elementsByTag("text")
-                    .filter { it.textContent in setOf("aaa", "bbb", "ccc") }
-                    .map { it.getAttribute("y").toDouble() }
+            val font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12)
+            val frc = java.awt.font.FontRenderContext(null, true, true)
 
-            ys.toSet() shouldHaveSize 3
+            data class Box(
+                val minX: Double,
+                val minY: Double,
+                val maxX: Double,
+                val maxY: Double,
+            )
+
+            fun boxOf(
+                text: String,
+                cx: Double,
+                baselineY: Double,
+            ): Box {
+                val b = font.getStringBounds(text, frc)
+                val halfWidth = b.width / 2.0
+                val top = baselineY + b.y
+                return Box(cx - halfWidth, top, cx + halfWidth, top + b.height)
+            }
+
+            fun Box.overlaps(other: Box): Boolean =
+                minX < other.maxX && maxX > other.minX && minY < other.maxY && maxY > other.minY
+
+            val boxes =
+                doc.elementsByTag("text").filter { it.textContent in setOf("aaa", "bbb", "ccc") }.map { el ->
+                    boxOf(el.textContent, el.getAttribute("x").toDouble(), el.getAttribute("y").toDouble())
+                }
+            boxes shouldHaveSize 3
+
+            for (i in boxes.indices) {
+                for (j in i + 1 until boxes.size) {
+                    boxes[i].overlaps(boxes[j]) shouldBe false
+                }
+            }
         }
 
         "a self-loop's verb label stays within the canvas even when the loop sits at the node's right edge" {
@@ -570,11 +621,16 @@ class FunctionModelSvgRendererTest :
         }
 
         "no rendered edge point falls outside the SVG's own viewBox, even with many bowed edges and a self-loop" {
-            // A dense bundle of parallel edges between the same pair pushes bowOffsetFor's
-            // clamp (BOW_MAX_OFFSET_PX) on both sides of the route, plus a self-loop -- together
-            // the widest plausible test of canvasBoundsFor's four-sided bounding box, since a
-            // real ELK layout's edge orientation (and therefore which axis the bow perturbs)
-            // is not controlled directly by this test.
+            // A dense bundle of parallel edges between the same pair exercises bowOffsetFor's
+            // adaptive envelope on both sides of the route, plus a self-loop -- together a wide
+            // test of canvasBoundsFor's four-sided bounding box, since a real ELK layout's edge
+            // orientation (and therefore which axis the bow perturbs) is not controlled directly
+            // by this test. Raw `<path>`/`<polygon>` coordinates are emitted in the *pre-translate*
+            // space (see [groupTranslateOffset]) -- when canvasBoundsFor needs to widen the canvas
+            // to the left/top of ELK's own layout, renderSvg() wraps the body in a
+            // `<g transform="translate(...)">` rather than rewriting every coordinate, so this
+            // test must add that offset back in before comparing against the viewBox, exactly as
+            // an SVG renderer would.
             val fm =
                 functionModel {
                     val a = component("A")
@@ -593,6 +649,7 @@ class FunctionModelSvgRendererTest :
             val doc = parseSvg(fm.renderSvg())
             val width = doc.documentElement.getAttribute("width").toDouble()
             val height = doc.documentElement.getAttribute("height").toDouble()
+            val (tx, ty) = doc.groupTranslateOffset()
 
             val allCoords =
                 (
@@ -609,12 +666,12 @@ class FunctionModelSvgRendererTest :
             // Coordinates alternate x,y in both "M x y L x y ..." path data and "x,y x,y ..."
             // polygon points, so every even index is an x and every odd index is a y.
             allCoords.filterIndexed { i, _ -> i % 2 == 0 }.forEach { x ->
-                (x >= -0.01) shouldBe true
-                (x <= width + 0.01) shouldBe true
+                (x + tx >= -0.01) shouldBe true
+                (x + tx <= width + 0.01) shouldBe true
             }
             allCoords.filterIndexed { i, _ -> i % 2 == 1 }.forEach { y ->
-                (y >= -0.01) shouldBe true
-                (y <= height + 0.01) shouldBe true
+                (y + ty >= -0.01) shouldBe true
+                (y + ty <= height + 0.01) shouldBe true
             }
         }
 
@@ -635,6 +692,262 @@ class FunctionModelSvgRendererTest :
             val harmfulPath = parseSvg(fmHarmful.renderSvg()).elementsByTag("path").single()
             val lCount = Regex("L ").findAll(harmfulPath.getAttribute("d")).count()
             lCount shouldBeGreaterThan 1
+        }
+
+        "an edge label's baseline position is unchanged for a solo edge (regression anchor)" {
+            // Named regression anchor, separate from the "true midpoint" bug-fix test above:
+            // pins the exact byte-identical value (mid.y - 4) the new greedy label-placement
+            // pass must still produce for a solo edge whose label needs no collision avoidance.
+            val fm =
+                functionModel {
+                    val a = component("A")
+                    val b = component("B")
+                    useful(from = a, to = b, verb = "drives")
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val path = doc.elementsByTag("path").single()
+            val coords = Regex("-?\\d+\\.?\\d*").findAll(path.getAttribute("d")).map { it.value.toDouble() }.toList()
+            val (_, y0, _, y1) = coords
+            val expectedY = (y0 + y1) / 2.0 - 4.0
+
+            val label = doc.elementsByTag("text").single { it.textContent == "drives" }
+            abs(label.getAttribute("y").toDouble() - expectedY) shouldBeLessThan 0.01
+        }
+
+        "twenty long-verb edges between the same pair render with zero label/label and label/node overlap" {
+            // Dense bundle regression guard for the greedy 2D collision-avoidance pass: 20 edges
+            // between the same A<->B pair, each with a distinct, deliberately long verb, so text
+            // width alone would collide under the old fixed vertical stagger. Overlap is
+            // recomputed independently here using the same public JDK font-metrics API the
+            // renderer uses internally (not by importing the internal edgeLabelBoxAt -- kept
+            // black-box, consistent with the rest of this file), so this test does not depend on
+            // the renderer's own bookkeeping being correct.
+            val fm =
+                functionModel {
+                    val a = component("A")
+                    val b = component("B")
+                    repeat(20) { i ->
+                        val verb = "transmits vibration energy through the shaft $i"
+                        when (i % 4) {
+                            0 -> useful(from = a, to = b, verb = verb)
+                            1 -> harmful(from = a, to = b, verb = verb)
+                            2 -> insufficient(from = b, to = a, verb = verb)
+                            else -> excessive(from = b, to = a, verb = verb)
+                        }
+                    }
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12)
+            val frc = java.awt.font.FontRenderContext(null, true, true)
+
+            data class Box(
+                val minX: Double,
+                val minY: Double,
+                val maxX: Double,
+                val maxY: Double,
+            )
+
+            fun boxOf(
+                text: String,
+                cx: Double,
+                baselineY: Double,
+            ): Box {
+                val b = font.getStringBounds(text, frc)
+                val halfWidth = b.width / 2.0
+                val top = baselineY + b.y
+                return Box(cx - halfWidth, top, cx + halfWidth, top + b.height)
+            }
+
+            fun Box.overlaps(other: Box): Boolean =
+                minX < other.maxX && maxX > other.minX && minY < other.maxY && maxY > other.minY
+
+            val labelBoxes =
+                doc.elementsByTag("text").filter { it.textContent.startsWith("transmits vibration") }.map { el ->
+                    boxOf(el.textContent, el.getAttribute("x").toDouble(), el.getAttribute("y").toDouble())
+                }
+            labelBoxes shouldHaveSize 20
+
+            val nodeBoxes =
+                doc.elementsByTag("rect").map { r ->
+                    val x = r.getAttribute("x").toDouble()
+                    val y = r.getAttribute("y").toDouble()
+                    val w = r.getAttribute("width").toDouble()
+                    val h = r.getAttribute("height").toDouble()
+                    Box(x, y, x + w, y + h)
+                }
+
+            for (i in labelBoxes.indices) {
+                for (j in i + 1 until labelBoxes.size) {
+                    labelBoxes[i].overlaps(labelBoxes[j]) shouldBe false
+                }
+                nodeBoxes.forEach { nodeBox ->
+                    labelBoxes[i].overlaps(nodeBox) shouldBe false
+                }
+            }
+        }
+
+        "twenty-four edges between the same pair still bow apart with distinct offsets, no clamp collapse" {
+            // Regression guard for BOW_MAX_OFFSET_PX's removal: at a group size well past what
+            // the old hard clamp (+/-27px) could distinguish, the adaptive envelope must still
+            // produce 24 distinct offsets from the straight A-B axis, with a minimum pairwise gap
+            // no worse than BOW_MIN_SPACING_PX (3px) -- tested black-box via rendered path
+            // midpoints' perpendicular distance from the axis, since bowOffsetFor itself is
+            // internal and not visible from this module (see ktriz-tests/build.gradle.kts: a
+            // plain project() dependency, no friend-module/testFixtures wiring). Deliberately
+            // alternates only USEFUL (solid) and INSUFFICIENT (dashed) qualities -- both render
+            // their *base* geometry as a single straight/bowed path with a consistent BOW_SAMPLES
+            // point count; HARMFUL's wavy re-sampling and EXCESSIVE's doubled path would each
+            // break this test's simple "one path, N points" bookkeeping without changing what's
+            // actually being verified (bow-offset distinctness lives in the shared *base*, not in
+            // per-quality stroke rendering).
+            val fm =
+                functionModel {
+                    val a = component("A")
+                    val b = component("B")
+                    repeat(24) { i ->
+                        if (i % 2 ==
+                            0
+                        ) {
+                            useful(from = a, to = b, verb = "v$i")
+                        } else {
+                            insufficient(from = b, to = a, verb = "v$i")
+                        }
+                    }
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val paths = doc.elementsByTag("path")
+            paths shouldHaveSize 24
+
+            fun endpoints(d: String): List<Double> =
+                Regex("-?\\d+\\.?\\d*").findAll(d).map { it.value.toDouble() }.toList()
+
+            // Ground truth axis: the two node rects' centers (independent of the bow offsets
+            // themselves, which perturb every interior sample point but never the two endpoints).
+            val rects = doc.elementsByTag("rect")
+
+            fun center(r: Element) =
+                (r.getAttribute("x").toDouble() + r.getAttribute("width").toDouble() / 2) to
+                    (r.getAttribute("y").toDouble() + r.getAttribute("height").toDouble() / 2)
+            val (ax, ay) = center(rects[0])
+            val (bx, by) = center(rects[1])
+            val dx = bx - ax
+            val dy = by - ay
+            val axisLen = kotlin.math.sqrt(dx * dx + dy * dy)
+
+            fun midpointDistanceToAxis(d: String): Double {
+                val coords = endpoints(d)
+                // Midpoint of the whole polyline's coordinate list is close enough to the true
+                // bow apex for a monotonically-bowed path re-sampled at BOW_SAMPLES points.
+                val midIdx = (coords.size / 4) * 2 // an even index near the middle
+                val px = coords[midIdx]
+                val py = coords[midIdx + 1]
+                return abs(dx * (ay - py) - (ax - px) * dy) / axisLen
+            }
+
+            val offsets = paths.map { midpointDistanceToAxis(it.getAttribute("d")) }.sorted()
+            // 24 distinct offsets -- no two edges collapsed onto the same bow position.
+            offsets.toSet().size shouldBe 24
+            // Minimum gap between adjacent (sorted) offsets must not be worse than the adaptive
+            // floor -- a hard clamp at +/-27px with 24 edges would force many gaps to 0.
+            val minGap = offsets.zipWithNext().minOf { (p, n) -> n - p }
+            minGap shouldBeGreaterThan 0.0
+        }
+
+        "twenty-four self-loops on the same component get distinct arc extents, no clamp collapse" {
+            // Regression guard for SELF_LOOP_STACK_MAX_PX's removal: analogous to the bow-offset
+            // test above, but for self-loop radii.
+            val fm =
+                functionModel {
+                    val turbine = component("Turbine")
+                    repeat(24) { i -> useful(from = turbine, to = turbine, verb = "loop$i") }
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val paths = doc.elementsByTag("path")
+            paths shouldHaveSize 24
+
+            fun maxX(d: String): Double =
+                Regex("-?\\d+\\.?\\d*")
+                    .findAll(d)
+                    .map { it.value.toDouble() }
+                    .toList()
+                    .filterIndexed { i, _ -> i % 2 == 0 }
+                    .max()
+
+            val maxXs = paths.map { maxX(it.getAttribute("d")) }.sorted()
+            maxXs.toSet().size shouldBe 24
+            val minGap = maxXs.zipWithNext().minOf { (p, n) -> n - p }
+            minGap shouldBeGreaterThan 0.0
+        }
+
+        "combined dense load (24 bowed edges + 24 self-loops) keeps every path and label inside the canvas" {
+            // Extends the existing "no rendered edge point falls outside..." test to also cover
+            // label boxes (that test only ever checked path/polygon points) under a much larger
+            // combined load than the original n=9 case.
+            val fm =
+                functionModel {
+                    val a = component("A")
+                    val b = component("B")
+                    repeat(24) { i ->
+                        when (i % 4) {
+                            0 -> useful(from = a, to = b, verb = "v$i")
+                            1 -> harmful(from = a, to = b, verb = "v$i")
+                            2 -> insufficient(from = b, to = a, verb = "v$i")
+                            else -> excessive(from = b, to = a, verb = "v$i")
+                        }
+                    }
+                    repeat(24) { i -> useful(from = a, to = a, verb = "loop$i") }
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val width = doc.documentElement.getAttribute("width").toDouble()
+            val height = doc.documentElement.getAttribute("height").toDouble()
+
+            val allCoords =
+                (
+                    doc.elementsByTag("path").flatMap { p ->
+                        Regex("-?\\d+\\.?\\d*").findAll(p.getAttribute("d")).map { it.value.toDouble() }
+                    } +
+                        doc.elementsByTag("polygon").flatMap { poly ->
+                            poly.getAttribute("points").split(" ").flatMap { pair ->
+                                pair.split(",").map(String::toDouble)
+                            }
+                        }
+                ).toList()
+
+            allCoords.filterIndexed { i, _ -> i % 2 == 0 }.forEach { x ->
+                (x >= -0.01) shouldBe true
+                (x <= width + 0.01) shouldBe true
+            }
+            allCoords.filterIndexed { i, _ -> i % 2 == 1 }.forEach { y ->
+                (y >= -0.01) shouldBe true
+                (y <= height + 0.01) shouldBe true
+            }
+
+            // Label boxes too, measured independently via the same public JDK API as the earlier
+            // self-loop-label canvas test.
+            val font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12)
+            val frc = java.awt.font.FontRenderContext(null, true, true)
+            doc
+                .elementsByTag(
+                    "text",
+                ).filter { it.textContent.startsWith("v") || it.textContent.startsWith("loop") }
+                .forEach { el ->
+                    val b = font.getStringBounds(el.textContent, frc)
+                    val cx = el.getAttribute("x").toDouble()
+                    val baselineY = el.getAttribute("y").toDouble()
+                    val minX = cx - b.width / 2.0
+                    val maxX = cx + b.width / 2.0
+                    val minY = baselineY + b.y
+                    val maxY = minY + b.height
+                    (minX >= -0.5) shouldBe true
+                    (maxX <= width + 0.5) shouldBe true
+                    (minY >= -0.5) shouldBe true
+                    (maxY <= height + 0.5) shouldBe true
+                }
         }
 
         "two self-loops on the same component get visually distinct radii" {
@@ -659,5 +972,43 @@ class FunctionModelSvgRendererTest :
 
             val maxXs = paths.map { maxX(it.getAttribute("d")) }
             (maxXs[0] != maxXs[1]) shouldBe true
+        }
+
+        "an edge verb that cannot avoid overlap even after the full candidate search is truncated with a title" {
+            // Exercises placeEdgeLabels' fallback branch (FunctionModelSvgRenderer.kt): when none
+            // of the LABEL_CANDIDATE_MAX (60) full-text candidates comes back overlap-free, the
+            // verb is shrunk via displayTextFor (to roughly LABEL_TRUNCATE_WIDTH_FACTOR of its
+            // measured width) and the search re-run; if the shrunk text's best placement beats the
+            // full text's, the shrunk, truncated text wins and renderEdge emits a <title> tooltip
+            // carrying the full verb. 80 self-loops sharing one component, each with a long verb,
+            // pack the label stack far too densely for any of the 60 candidates to stay
+            // overlap-free -- confirmed this reaches the fallback path via a scratch run before
+            // writing this as a permanent regression guard.
+            val longVerb = "compresses the primary intake manifold across every operating stage"
+            val fm =
+                functionModel {
+                    val turbine = component("Turbine")
+                    repeat(80) { i -> useful(from = turbine, to = turbine, verb = "$longVerb $i") }
+                }
+
+            val doc = parseSvg(fm.renderSvg())
+            val titles = doc.elementsByTag("title")
+
+            // renderNode never emits a title here (the single "Turbine" name is short and never
+            // truncates), so every <title> present must come from renderEdge's truncated branch.
+            titles.shouldNotBeEmpty()
+
+            titles.forEach { title ->
+                val fullVerb = title.textContent
+                (fullVerb.startsWith(longVerb)) shouldBe true
+
+                // The <title> is the first child of its enclosing <text> element; the visible,
+                // truncated label text is the remaining text content after it.
+                val textEl = title.parentNode as Element
+                val visibleText = textEl.textContent.removePrefix(fullVerb)
+
+                visibleText.endsWith("…") shouldBe true
+                (visibleText.length < fullVerb.length) shouldBe true
+            }
         }
     })

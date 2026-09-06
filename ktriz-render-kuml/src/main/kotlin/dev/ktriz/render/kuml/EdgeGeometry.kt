@@ -6,7 +6,6 @@ import dev.kuml.layout.Rect
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -16,12 +15,14 @@ internal const val WAVE_STEP_PX = 4f
 
 internal const val BOW_SAMPLES = 17
 internal const val BOW_SPACING_PX = 9f
-internal const val BOW_MAX_OFFSET_PX = 27f
+internal const val BOW_ENVELOPE_PX = 90f
+internal const val BOW_MIN_SPACING_PX = 3f
 internal const val SELF_LOOP_BASE_RADIUS_PX = 20f
 internal const val SELF_LOOP_HEIGHT_FACTOR = 0.2f
 internal const val SELF_LOOP_HEIGHT_OFFSET_PX = 12f
 internal const val SELF_LOOP_STACK_STEP_PX = 8f
-internal const val SELF_LOOP_STACK_MAX_PX = 44f
+internal const val SELF_LOOP_ENVELOPE_PX = 120f
+internal const val SELF_LOOP_MIN_STACK_STEP_PX = 3f
 internal const val SELF_LOOP_SAMPLES = 24
 internal const val SELF_LOOP_EXIT_FRACTION = 0.30f
 internal const val SELF_LOOP_RETURN_FRACTION = 0.70f
@@ -264,23 +265,55 @@ internal fun selfLoopPolyline(
     }
 }
 
-/** Radius for the k-th (0-based) self-loop on the same component -- later loops stack outward, capped. */
+/**
+ * Radius for the k-th (0-based) self-loop of [loopCount] sharing the same component -- later
+ * loops stack outward. The per-loop step narrows adaptively as [loopCount] grows so the stack
+ * stays within [SELF_LOOP_ENVELOPE_PX] of the innermost loop's radius for moderate [loopCount]
+ * values, down to a [SELF_LOOP_MIN_STACK_STEP_PX] floor -- unlike a hard clamp (the previous
+ * `SELF_LOOP_STACK_MAX_PX`), which let every loop past a fixed count collapse onto the exact same
+ * radius and become visually indistinguishable. Past roughly 40 loops (`loopCount - 1 >
+ * SELF_LOOP_ENVELOPE_PX / SELF_LOOP_MIN_STACK_STEP_PX`) the floor takes over and the step stays
+ * pinned at [SELF_LOOP_MIN_STACK_STEP_PX], so the envelope is no longer an upper bound -- total
+ * spread then grows linearly with [loopCount] again. That is intentional: edges keep spreading
+ * apart rather than collapsing onto each other, which is the bug this stack-step logic fixes; the
+ * envelope is best read as "the target spread for realistic loop counts", not a hard cap. For
+ * `loopCount <= 1` the step is irrelevant since there is only ever one loop (`loopIndex == 0`).
+ */
 internal fun selfLoopRadiusPx(
     nodeHeightPx: Float,
     loopIndex: Int,
+    loopCount: Int,
 ): Float {
     val base = maxOf(SELF_LOOP_BASE_RADIUS_PX, nodeHeightPx * SELF_LOOP_HEIGHT_FACTOR + SELF_LOOP_HEIGHT_OFFSET_PX)
-    return base + min(loopIndex * SELF_LOOP_STACK_STEP_PX, SELF_LOOP_STACK_MAX_PX)
+    val step =
+        if (loopCount <= 1) {
+            0f
+        } else {
+            (SELF_LOOP_ENVELOPE_PX / (loopCount - 1)).coerceIn(SELF_LOOP_MIN_STACK_STEP_PX, SELF_LOOP_STACK_STEP_PX)
+        }
+    return base + loopIndex * step
 }
 
-/** Perpendicular bow offset for edge `loopIndex` of `groupSize` sharing the same component pair (`groupSize<=1` -> 0). */
+/**
+ * Perpendicular bow offset for edge `loopIndex` of `groupSize` sharing the same component pair
+ * (`groupSize<=1` -> 0). The spacing between adjacent edges narrows adaptively as [groupSize]
+ * grows so the fan stays within +/-[BOW_ENVELOPE_PX] of the pair's route for moderate [groupSize]
+ * values, down to a [BOW_MIN_SPACING_PX] floor -- unlike a hard clamp (the previous
+ * `BOW_MAX_OFFSET_PX`), which let every edge past a fixed group size pile onto the same two
+ * outermost offsets and become indistinguishable from each other. Past roughly 60 edges
+ * (`groupSize - 1 > 2 * BOW_ENVELOPE_PX / BOW_MIN_SPACING_PX`) the floor takes over and spacing
+ * stays pinned at [BOW_MIN_SPACING_PX], so the envelope is no longer an upper bound -- total fan
+ * width then grows linearly with [groupSize] again. That is intentional: edges keep spreading
+ * apart rather than collapsing onto each other, which is the bug this spacing logic fixes; the
+ * envelope is best read as "the target spread for realistic group sizes", not a hard cap.
+ */
 internal fun bowOffsetFor(
     loopIndex: Int,
     groupSize: Int,
 ): Float {
     if (groupSize <= 1) return 0f
-    val raw = (loopIndex - (groupSize - 1) / 2f) * BOW_SPACING_PX
-    return raw.coerceIn(-BOW_MAX_OFFSET_PX, BOW_MAX_OFFSET_PX)
+    val spacing = (2f * BOW_ENVELOPE_PX / (groupSize - 1)).coerceIn(BOW_MIN_SPACING_PX, BOW_SPACING_PX)
+    return (loopIndex - (groupSize - 1) / 2f) * spacing
 }
 
 /**

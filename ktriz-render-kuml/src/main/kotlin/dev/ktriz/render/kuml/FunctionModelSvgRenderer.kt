@@ -50,6 +50,17 @@ private const val EMPTY_CANVAS_HEIGHT_PX = 120f
  * below); a single edge between a pair is left on its raw ELK route. Self-loops (`from == to`)
  * draw a dedicated fixed-radius arc anchored on the node's right edge instead of relying on
  * ELK's own self-loop routing, and the canvas is widened to fit it if needed.
+ *
+ * Edge-verb labels are placed by a greedy 2D collision-avoidance pass ([placeEdgeLabels]):
+ * for every edge (in declaration order, so placement is deterministic), a small set of candidate
+ * baseline positions alternating above/below the route's midpoint is tried, and the one with the
+ * least overlap area against every label and node box already placed is kept. If no candidate
+ * avoids overlap entirely, the verb is truncated with an ellipsis (the same mechanism
+ * [displayTextFor] uses for over-wide node names) and re-searched; whichever of the full or
+ * truncated text ends up with the smaller total overlap area wins -- this always terminates in a
+ * bounded number of candidates and never throws, even for a dense bundle of edges between the same
+ * two nodes. This replaces a purely alternating vertical stagger that had no knowledge of actual
+ * label width and could still collide for long verbs or large edge groups.
  */
 public fun FunctionModel.renderSvg(): String {
     if (components.isEmpty() && edges.isEmpty()) {
@@ -58,8 +69,9 @@ public fun FunctionModel.renderSvg(): String {
 
     val result = ElkLayoutEngine().layout(graph = toLayoutGraph(), hints = LayoutHints.DEFAULT)
     val geometry = computeEdgeBases(result)
-    val body = renderBody(result, geometry)
-    val bounds = canvasBoundsFor(result, geometry)
+    val labels = placeEdgeLabels(result, geometry.bases)
+    val body = renderBody(result, geometry, labels)
+    val bounds = canvasBoundsFor(result, geometry, labels)
     val positionedBody =
         if (bounds.offsetX > 0f || bounds.offsetY > 0f) {
             """<g transform="translate(${bounds.offsetX},${bounds.offsetY})">$body</g>"""
@@ -73,36 +85,32 @@ public fun FunctionModel.renderSvg(): String {
  * The canvas size actually needed to fit every rendered edge point *and* every edge verb label
  * without clipping, plus the `<g transform="translate(...)">` offset required if any of them
  * falls outside ELK's own `result.canvas` on any side. Self-loops and bowed multi-edges are
- * drawn from [bases], not from ELK's raw routes, so their geometry can legitimately extend
- * beyond the canvas ELK computed for the unmodified layout -- on any of the four sides, not just
- * to the right (a self-loop bulges right, but a bowed multi-edge's perpendicular offset can push
- * points left, above, or below just as easily, depending on the pair's layout orientation).
+ * drawn from [EdgeGeometry.bases], not from ELK's raw routes, so their geometry can legitimately
+ * extend beyond the canvas ELK computed for the unmodified layout -- on any of the four sides, not
+ * just to the right (a self-loop bulges right, but a bowed multi-edge's perpendicular offset can
+ * push points left, above, or below just as easily, depending on the pair's layout orientation).
  * Edge-point geometry alone is not enough, though: a verb label is drawn centered
  * (`text-anchor="middle"`) at its route's midpoint with no relation to any rendered point's
  * coordinates, so a self-loop or edge whose midpoint sits near a canvas edge can still have its
  * *label* clip even when every path/polygon point is comfortably inside -- see this file's git
  * history for the "wears" self-loop label this was caught against by manual visual inspection
- * (automated point-coordinate tests never render text, so they could not have caught it).
+ * (automated point-coordinate tests never render text, so they could not have caught it). Label
+ * boxes here are computed with the exact same [edgeLabelBoxAt] helper [placeEdgeLabels] used to
+ * place them -- a single source of truth, rather than the flat [EDGE_LABEL_FONT_SIZE_PX]
+ * approximation this function used before real per-label bounding boxes existed.
  * [CANVAS_MARGIN_PX] is applied on every side that actually needs widening, so nothing lands
  * exactly on the SVG edge.
  */
 private fun FunctionModel.canvasBoundsFor(
     result: LayoutResult,
     geometry: EdgeGeometry,
+    labels: Map<Int, EdgeLabelPlacement>,
 ): CanvasBounds {
     val edgePoints = geometry.bases.values.flatten()
     val labelCorners =
-        edges.withIndex().flatMap { (index, edge) ->
-            val base = geometry.bases[index] ?: return@flatMap emptyList()
-            val labelY = labelBaselineY(base, geometry.labelStackIndex[index] ?: 0)
-            val mid = midpointOf(base)
-            val halfWidth = measuredEdgeLabelWidthPx(edge.verb) / 2f
-            // Label baseline sits at labelY (see renderEdge); pad upward by the font size for the
-            // glyphs' ascent above the baseline, since SVG text y is a baseline, not a box top.
-            listOf(
-                Point(x = mid.x - halfWidth, y = labelY - EDGE_LABEL_FONT_SIZE_PX),
-                Point(x = mid.x + halfWidth, y = labelY),
-            )
+        labels.values.flatMap { placement ->
+            val box = edgeLabelBoxAt(placement.text, placement.centerX, placement.baselineY)
+            listOf(Point(x = box.minX, y = box.minY), Point(x = box.maxX, y = box.maxY))
         }
     val points = edgePoints + labelCorners
     val minX = minOf(0f, (points.minOfOrNull { it.x } ?: 0f) - CANVAS_MARGIN_PX)
@@ -115,17 +123,12 @@ private fun FunctionModel.canvasBoundsFor(
 }
 
 /**
- * [bases]: for every edge, the finished *base* geometry its stroke style and arrowhead are
- * derived from. [labelStackIndex]: for every edge, its 0-based position within its label-sharing
- * group (all self-loops on the same component, or all edges between the same unordered component
- * pair) -- 0 for an edge that is the only member of its group. Both maps share the same keyset
- * (every edge with a non-degenerate route) and the same per-group ordering, computed once here so
- * [renderBody]'s per-edge label vertical stagger ([labelBaselineY]) lines up with the geometry
- * that produced the bow/loop [bases] entry it labels.
+ * [bases]: for every edge, the finished *base* geometry its stroke style, arrowhead, and label
+ * placement are derived from -- keyed by the edge's index in [FunctionModel.edges], every edge
+ * with a non-degenerate route present.
  */
 private data class EdgeGeometry(
     val bases: Map<Int, List<Point>>,
-    val labelStackIndex: Map<Int, Int>,
 )
 
 /**
@@ -142,12 +145,16 @@ private data class EdgeGeometry(
  */
 private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
     val selfLoopK = HashMap<Int, Int>()
+    val selfLoopN = HashMap<Int, Int>()
     edges
         .withIndex()
         .filter { it.value.from.name == it.value.to.name }
         .groupBy { it.value.from.name }
         .values
-        .forEach { group -> group.forEachIndexed { k, iv -> selfLoopK[iv.index] = k } }
+        .forEach { group ->
+            group.forEachIndexed { k, iv -> selfLoopK[iv.index] = k }
+            group.forEach { iv -> selfLoopN[iv.index] = group.size }
+        }
 
     val pairK = HashMap<Int, Int>()
     val pairN = HashMap<Int, Int>()
@@ -165,7 +172,7 @@ private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
     edges.forEachIndexed { index, edge ->
         if (edge.from.name == edge.to.name) {
             val bounds = result.nodes[NodeId(edge.from.name)]?.bounds ?: return@forEachIndexed
-            val radius = selfLoopRadiusPx(bounds.size.height, selfLoopK.getValue(index))
+            val radius = selfLoopRadiusPx(bounds.size.height, selfLoopK.getValue(index), selfLoopN.getValue(index))
             out[index] = selfLoopPolyline(bounds, radius)
         } else {
             val route = result.edges[EdgeId("e$index")] ?: return@forEachIndexed
@@ -189,52 +196,135 @@ private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
                 }
         }
     }
-    // selfLoopK and pairK key-sets are disjoint (an edge is either a self-loop or not), and both
-    // only ever assign to indices also present in `out` -- edges dropped above (degenerate route,
-    // missing node bounds) simply have no entry in `out` and are skipped by every out[index]-keyed
-    // consumer below, so a stale selfLoopK/pairK entry for a dropped edge is harmless dead data.
-    return EdgeGeometry(bases = out, labelStackIndex = selfLoopK + pairK)
+    // selfLoopK/selfLoopN and pairK/pairN key-sets are disjoint (an edge is either a self-loop or
+    // not), and both only ever assign to indices also present in `out` -- edges dropped above
+    // (degenerate route, missing node bounds) simply have no entry in `out` and are skipped by
+    // every out[index]-keyed consumer below, so a stale entry for a dropped edge is harmless dead
+    // data.
+    return EdgeGeometry(bases = out)
 }
 
+/** A resolved, collision-checked verb-label placement for one edge -- see [placeEdgeLabels]. */
+private data class EdgeLabelPlacement(
+    val text: String,
+    val truncated: Boolean,
+    val centerX: Float,
+    val baselineY: Float,
+)
+
+/** Bounds how many candidate positions [placeEdgeLabels] tries per edge before settling for the least-bad one it has seen. */
+private const val LABEL_CANDIDATE_MAX = 60
+
+/** Extra clearance kept between a label's box and any other label/node box it is checked against, beyond literal overlap. */
+private const val LABEL_COLLISION_PAD_PX = 2f
+
+/** Width budget (as a fraction of the full verb's measured width) a label is shrunk to when the fallback truncation search runs. */
+private const val LABEL_TRUNCATE_WIDTH_FACTOR = 0.6f
+
 /**
- * The verb label's SVG text baseline y for an edge at [stackIndex] within its label-sharing
- * group: [EDGE_LABEL_BASE_OFFSET_PX] above the route's arc-length midpoint for a solo edge
- * (`stackIndex == 0`), every further member of the group staggered
- * [EDGE_LABEL_STACK_STEP_PX] further away, alternating *above and below* the midpoint (1 up,
- * 2 down, 3 further up, 4 further down, ...) rather than piling every label on one side --
- * for a group of size `n` this roughly halves the tallest single-direction excursion compared
- * to a one-directional staircase, which otherwise grows unbounded with group size and can climb
- * into a neighbouring node's box for a wide multi-edge group between two closely stacked nodes
- * (a known remaining limitation for very large groups with long verbs, documented in the README;
- * full label-collision avoidance -- e.g. shrinking the step or routing a leader line -- is out
- * of scope for this wave).
+ * Places every edge's verb label with a greedy 2D collision-avoidance search, in
+ * [FunctionModel.edges] declaration order so placement is fully deterministic. For each edge, up
+ * to [LABEL_CANDIDATE_MAX] candidate baseline positions are tried -- alternating above and below
+ * the route's arc-length midpoint, each level one *label-height* step further out (the step is
+ * the text's own measured box height plus [LABEL_COLLISION_PAD_PX] on each side, not a fixed
+ * constant: [EDGE_LABEL_STACK_STEP_PX] alone (13px) is *smaller* than a 12px font's typical
+ * ascent+descent, so two candidates one level apart would still overlap vertically regardless of
+ * how many levels were tried -- using the real box height instead guarantees every level is
+ * genuinely clear of its neighbours), floored at [EDGE_LABEL_STACK_STEP_PX] so short single-line
+ * labels never step by less than the original spacing. Candidate 0 reproduces the original
+ * single-edge placement (`midpointOf(base).y - EDGE_LABEL_BASE_OFFSET_PX`) exactly regardless of
+ * this step, since level 0 has no offset -- and the candidate whose real, measured label box
+ * ([edgeLabelBoxAt], inflated by [LABEL_COLLISION_PAD_PX]) has the least total overlap area
+ * against every label and node box placed so far is kept. If no candidate is overlap-free, the
+ * verb is truncated to roughly [LABEL_TRUNCATE_WIDTH_FACTOR] of its measured width (via
+ * [displayTextFor], the same mechanism over-wide node names use) and the search is repeated;
+ * whichever of the full-text or truncated-text result has the smaller overlap area wins, and a
+ * truncated placement carries a `<title>` tooltip with the full verb (mirrors [renderNode]'s
+ * truncated-name tooltip). This is O(E * [LABEL_CANDIDATE_MAX] * (E + V)) in the worst case --
+ * bounded per edge, so a pathologically large [FunctionModel] cannot make label placement itself
+ * a runaway cost.
  *
  * Multiple edges between the same pair already bow apart so their *lines* stay individually
- * visible (see [computeEdgeBases]), but their verb labels are drawn at the same, undisplaced
- * midpoint height on the route between two nodes -- without this stagger they visually collide
- * regardless of how far apart the lines themselves bow, since text width usually exceeds the bow
- * spacing. A self-loop's single label needs no stagger from its own group unless multiple
- * self-loops share the same component, in which case the same staircase applies.
+ * visible (see [computeEdgeBases]), but without collision-aware label placement their verb labels
+ * could still visually collide, since text width usually exceeds the bow spacing. A self-loop's
+ * single label needs no collision search against its own group unless multiple self-loops share
+ * the same component, in which case the same search applies.
  */
-private fun labelBaselineY(
-    base: List<Point>,
-    stackIndex: Int,
-): Float {
-    if (stackIndex == 0) return midpointOf(base).y - EDGE_LABEL_BASE_OFFSET_PX
-    val level = (stackIndex + 1) / 2
-    val sign = if (stackIndex % 2 == 1) -1f else 1f
-    return midpointOf(base).y - EDGE_LABEL_BASE_OFFSET_PX + sign * level * EDGE_LABEL_STACK_STEP_PX
+private fun FunctionModel.placeEdgeLabels(
+    result: LayoutResult,
+    bases: Map<Int, List<Point>>,
+): Map<Int, EdgeLabelPlacement> {
+    val nodeBoxes = result.nodes.values.map { it.bounds.toLabelBox() }
+    val placed = mutableListOf<LabelBox>()
+    val out = LinkedHashMap<Int, EdgeLabelPlacement>()
+
+    fun candidateY(
+        midY: Float,
+        c: Int,
+        stepPx: Float,
+    ): Float {
+        val level = (c + 1) / 2
+        val sign = if (c % 2 == 1) -1f else 1f
+        return midY - EDGE_LABEL_BASE_OFFSET_PX + sign * level * stepPx
+    }
+
+    fun bestOf(
+        midX: Float,
+        midY: Float,
+        text: String,
+    ): Pair<Float, Float> {
+        val ownHeight = edgeLabelBoxAt(text, midX, 0f).let { it.maxY - it.minY }
+        val stepPx = maxOf(EDGE_LABEL_STACK_STEP_PX, ownHeight + 2f * LABEL_COLLISION_PAD_PX)
+        var bestY = candidateY(midY, 0, stepPx)
+        var bestArea = Float.MAX_VALUE
+        for (c in 0 until LABEL_CANDIDATE_MAX) {
+            val y = candidateY(midY, c, stepPx)
+            val box = edgeLabelBoxAt(text, midX, y).inflate(LABEL_COLLISION_PAD_PX)
+            val area =
+                placed.sumOf { box.overlapAreaWith(it).toDouble() }.toFloat() +
+                    nodeBoxes.sumOf { box.overlapAreaWith(it).toDouble() }.toFloat()
+            if (area == 0f) return y to 0f
+            if (area < bestArea) {
+                bestArea = area
+                bestY = y
+            }
+        }
+        return bestY to bestArea
+    }
+
+    edges.forEachIndexed { index, edge ->
+        val base = bases[index] ?: return@forEachIndexed
+        val mid = midpointOf(base)
+        val (fullY, fullArea) = bestOf(mid.x, mid.y, edge.verb)
+        val (finalText, finalY, truncated) =
+            if (fullArea == 0f) {
+                Triple(edge.verb, fullY, false)
+            } else {
+                val shrunkWidth = measuredEdgeLabelWidthPx(edge.verb) * LABEL_TRUNCATE_WIDTH_FACTOR
+                val shrunk = displayTextFor(edge.verb, shrunkWidth, ::measuredEdgeLabelWidthPx)
+                val (shrunkY, shrunkArea) = bestOf(mid.x, mid.y, shrunk.text)
+                if (shrunkArea < fullArea) {
+                    Triple(shrunk.text, shrunkY, shrunk.truncated)
+                } else {
+                    Triple(edge.verb, fullY, false)
+                }
+            }
+        placed += edgeLabelBoxAt(finalText, mid.x, finalY).inflate(LABEL_COLLISION_PAD_PX)
+        out[index] = EdgeLabelPlacement(text = finalText, truncated = truncated, centerX = mid.x, baselineY = finalY)
+    }
+    return out
 }
 
 private fun FunctionModel.renderBody(
     result: LayoutResult,
     geometry: EdgeGeometry,
+    labels: Map<Int, EdgeLabelPlacement>,
 ): String =
     buildString {
         edges.forEachIndexed { index, edge ->
             val base = geometry.bases[index] ?: return@forEachIndexed
-            val stackIndex = geometry.labelStackIndex[index] ?: 0
-            append(renderEdge(edge, base, stackIndex))
+            val placement = labels[index] ?: return@forEachIndexed
+            append(renderEdge(edge, base, placement))
         }
         result.nodes.forEach { (nodeId, nodeLayout) ->
             append(renderNode(nodeId, nodeLayout.bounds))
@@ -262,7 +352,7 @@ private fun renderNode(
 private fun renderEdge(
     edge: FunctionEdge,
     base: List<Point>,
-    labelStackIndex: Int,
+    placement: EdgeLabelPlacement,
 ): String {
     val style = edge.quality.strokeStyle()
     val paths: List<List<Point>> =
@@ -287,11 +377,12 @@ private fun renderEdge(
     // straight route axis.
     val arrow = arrowheadPoints(base).toSvgPolygonPoints()
     val arrowTag = """<polygon points="$arrow" fill="$EDGE_STROKE_COLOR"/>"""
-    val mid = midpointOf(base)
-    val labelY = labelBaselineY(base, labelStackIndex)
+    // A truncated verb (label placement couldn't avoid overlap even after shrinking) carries the
+    // full verb as a <title> tooltip, mirroring renderNode's truncated-name tooltip.
+    val titleTag = if (placement.truncated) "<title>${xmlEscapeText(titleTextFor(edge.verb))}</title>" else ""
+    val labelText = xmlEscapeText(placement.text)
     val label =
-        """<text x="${mid.x}" y="$labelY" text-anchor="middle" font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX">${xmlEscapeText(
-            edge.verb,
-        )}</text>"""
+        """<text x="${placement.centerX}" y="${placement.baselineY}" text-anchor="middle" """ +
+            """font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX">$titleTag$labelText</text>"""
     return pathTags + arrowTag + label
 }

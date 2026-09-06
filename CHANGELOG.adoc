@@ -6,6 +6,27 @@ without a deprecation period.
 
 == Unreleased
 
+=== Renderer fixes
+
+* `FunctionModel.renderSvg()`: edge-verb labels are now placed by a greedy
+  2D collision-avoidance search instead of a fixed vertical stagger --
+  each label tries a bounded set of candidate positions (alternating
+  above/below the route's midpoint, stepping out by the label's own
+  measured height) and keeps whichever has the least overlap area against
+  every label and node box already placed; a verb that still cannot avoid
+  overlap is truncated with an ellipsis (full text kept in a `<title>`
+  tooltip) and re-searched. Fixes label/label and label/node overlap for
+  dense edge bundles and long verbs that the old fixed-step stagger could
+  not avoid.
+* `bowOffsetFor`/`selfLoopRadiusPx`: the previous hard clamps
+  (`BOW_MAX_OFFSET_PX = 27`, `SELF_LOOP_STACK_MAX_PX = 44`) have been
+  removed. Both now use an adaptive envelope that narrows the per-edge
+  spacing as the group grows (`BOW_ENVELOPE_PX = 90` / `BOW_MIN_SPACING_PX
+  = 3` for bowed edges, `SELF_LOOP_ENVELOPE_PX = 120` /
+  `SELF_LOOP_MIN_STACK_STEP_PX = 3` for self-loops) instead of collapsing
+  every edge past a fixed group size onto the same outermost offset or
+  radius.
+
 == v0.2.0 -- 2026-09-06
 
 === Substance-field models
