@@ -4,7 +4,7 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is pre-release software. The current tag is `v0.3.0` (source
+WARNING: kTRIZ is pre-release software. The current tag is `v0.3.1` (source
 only: there is no published artifact on Maven Central or Homebrew), the API
 is unstable, and breaking changes may happen in any release. What exists: the
 contradiction spine with the full classical 39x39 matrix, function models and
@@ -39,7 +39,7 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today (v0.3.0, pre-release, source only; 423 Kotest test cases):
+What works today (v0.3.1, pre-release, source only; 423 Kotest test cases):
 
 * The contradiction spine: all 39 engineering parameters and 40 inventive
   principles as Kotlin enums with English and German labels, `Contradiction`
