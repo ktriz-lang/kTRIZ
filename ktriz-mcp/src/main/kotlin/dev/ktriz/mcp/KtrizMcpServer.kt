@@ -1,10 +1,12 @@
 package dev.ktriz.mcp
 
 import dev.ktriz.mcp.tools.registerBuildFunctionModelTool
+import dev.ktriz.mcp.tools.registerBuildPhysicalContradictionTool
 import dev.ktriz.mcp.tools.registerBuildSuFieldTool
 import dev.ktriz.mcp.tools.registerListEngineeringParametersTool
 import dev.ktriz.mcp.tools.registerListFieldTypesTool
 import dev.ktriz.mcp.tools.registerListInventivePrinciplesTool
+import dev.ktriz.mcp.tools.registerListSeparationPrinciplesTool
 import dev.ktriz.mcp.tools.registerListStandardSolutionClassesTool
 import dev.ktriz.mcp.tools.registerLookupStandardSolutionTool
 import dev.ktriz.mcp.tools.registerRenderFunctionModelSvgTool
@@ -27,8 +29,8 @@ private val logger = ktrizMcpLogger {}
 /**
  * Assembles the kTRIZ MCP server: `list_engineering_parameters`, `list_inventive_principles`,
  * `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`,
- * `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, and
- * `lookup_standard_solution`.
+ * `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`,
+ * `lookup_standard_solution`, `build_physical_contradiction`, and `list_separation_principles`.
  *
  * Deliberately stateless -- unlike kSTEP's `kstep-mcp`, there is no `EntityStore` parameter here.
  * Every tool in this module is a pure function over [dev.ktriz.core.EngineeringParameter.entries],
@@ -56,7 +58,9 @@ fun buildServer(): Server {
     registerRenderSuFieldSvgTool(server)
     registerRenderFunctionModelSvgTool(server)
     registerLookupStandardSolutionTool(server)
-    logger.info { "kTRIZ MCP server assembled: 10 tools registered" }
+    registerBuildPhysicalContradictionTool(server)
+    registerListSeparationPrinciplesTool(server)
+    logger.info { "kTRIZ MCP server assembled: 12 tools registered" }
     return server
 }
 

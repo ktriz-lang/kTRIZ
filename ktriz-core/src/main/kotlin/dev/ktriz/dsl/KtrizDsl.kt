@@ -11,8 +11,9 @@ package dev.ktriz.dsl
  * and [dev.ktriz.sufield.SuFieldBuilder]. Originally lived next to
  * `FunctionModelBuilder` as its first (and at the time only) user, and was promoted here
  * once a second builder-style DSL (`suField { }`) appeared, exactly as its original KDoc
- * anticipated. If a third builder-style DSL appears (the planned ARIZ-workflow DSL is the
- * likely candidate), it belongs here too rather than minting a competing `@DslMarker`.
+ * anticipated. [dev.ktriz.physical.PhysicalContradictionBuilder] is the third. If a fourth builder-style
+ * DSL appears (the planned ARIZ-workflow DSL is the likely candidate), it belongs here too
+ * rather than minting a competing `@DslMarker`.
  */
 @DslMarker
 annotation class KtrizDsl

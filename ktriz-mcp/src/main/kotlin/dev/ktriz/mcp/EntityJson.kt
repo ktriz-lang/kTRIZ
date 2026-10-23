@@ -2,6 +2,7 @@ package dev.ktriz.mcp
 
 import dev.ktriz.core.EngineeringParameter
 import dev.ktriz.core.InventivePrinciple
+import dev.ktriz.physical.SeparationPrinciple
 import dev.ktriz.sufield.FieldType
 import dev.ktriz.sufield.StandardSolution
 import dev.ktriz.sufield.StandardSolutionClass
@@ -63,4 +64,13 @@ fun StandardSolution.toJson(): JsonObject =
         put("symbol", name)
         put("standardClass", standardClass.toJson())
         put("labelEn", labelEn)
+    }
+
+/** Same shape as [EngineeringParameter.toJson], for [SeparationPrinciple]. */
+fun SeparationPrinciple.toJson(): JsonObject =
+    buildJsonObject {
+        put("id", id)
+        put("symbol", name)
+        put("labelEn", labelEn)
+        put("labelDe", labelDe)
     }

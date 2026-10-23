@@ -42,7 +42,7 @@ private fun CallToolResult.errorKind(): String? = structuredContent?.get("errorK
 @OptIn(ExperimentalMcpApi::class)
 class KtrizMcpServerTest :
     StringSpec({
-        "tools/list lists exactly the ten registered tools, each with a description and an object schema" {
+        "tools/list lists exactly the twelve registered tools, each with a description and an object schema" {
             val client = connectedClient(buildServer())
             val tools = client.listTools().tools
 
@@ -58,11 +58,34 @@ class KtrizMcpServerTest :
                     "render_su_field_svg",
                     "render_function_model_svg",
                     "lookup_standard_solution",
+                    "build_physical_contradiction",
+                    "list_separation_principles",
                 )
             tools.forEach { tool ->
                 tool.description.isNullOrBlank() shouldBe false
                 tool.inputSchema.type shouldBe "object"
             }
+        }
+
+        "build_physical_contradiction over a real client/server session returns a model and a snippet" {
+            val client = connectedClient(buildServer())
+            val result =
+                client.callTool(
+                    "build_physical_contradiction",
+                    mapOf(
+                        "element" to "Landing gear",
+                        "property" to "Presence",
+                        "state" to "present",
+                        "oppositeState" to "absent",
+                        "separation" to "in_time",
+                    ),
+                )!!
+            result.errorKind() shouldBe null
+            val structured = result.structuredContent!!
+            structured["separation"]!!.jsonObject["symbol"]!!.jsonPrimitive.content shouldBe "IN_TIME"
+            structured["kotlin"]!!.jsonPrimitive.content shouldBe
+                "physicalContradiction {\n    element(\"Landing gear\")\n    property(\"Presence\")\n" +
+                "    state(\"present\")\n    oppositeState(\"absent\")\n    separation(SeparationPrinciple.IN_TIME)\n}"
         }
 
         "resolve_contradiction over a real client/server session returns the classical rank order" {

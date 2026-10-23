@@ -1,0 +1,108 @@
+= Physical contradictions and separation principles: data provenance
+
+Provenance record for `SeparationPrinciple` (the four classical separation
+principles) and for the decision **not** to bundle a mapping from separation
+principles to the 40 inventive principles. See `NOTICE` for the short summary
+and kTRIZ-ADR-0003 for the general public-domain-by-goodwill reasoning.
+
+Retrieved and evaluated: 2026-10-23.
+
+== What is (and is not) bundled
+
+Bundled: `SeparationPrinciple` -- four entries (in space, in time, upon
+condition, on system level) with an id and English/German labels. These are
+classical Altshuller terms; no table or prose was copied from any source.
+
+*Not* bundled: any mapping `SeparationPrinciple` to `InventivePrinciple`. No
+`SeparationPrincipleMapping` exists, and `list_separation_principles` reports
+`inventivePrincipleMapping: "none"`.
+
+Also not bundled, and not to be added: the 11 separation principles/strategies
+of Darrell Mann / CREAX / Systematic Innovation (content or names), and anything
+derived from Matrix 2003/2010/2022 material.
+
+== Acceptance rule
+
+A pair (separation principle, inventive principle id) would be accepted when at
+least two *independent*, freely accessible sources name it. Two sources with the
+same order, the same typos, or one citing the other count as one voice (same
+approach as `matrix-provenance.adoc`). Lean rather no mapping than a weak one.
+
+== Sources evaluated
+
+[cols="3,2,3"]
+|===
+| Source | Gives per-separation principle lists? | Verdict
+
+| MATRIZ wiki, "Algorithm for resolving physical contradictions"
+  (`wiki.matriz.org/docs/triz/problem-solving-tools-5890/contradictions/physical-contradiction-6056/algorithm-for-resolving-physical-contradictions/`)
+| Yes (space, time, relation/conditions, system level)
+| The only usable source. Licence wording on the page: "This text is open access
+  and distributed under the terms of the Creative Commons ... provided the
+  original source is credited"; footer "(c) 2023 All Rights Reserved by MATRIZ".
+  No CC version named. One voice only.
+
+| TRIZ Journal, "Breaking through and solving problems" (Mike Carter, Questline 2015) and `?p=12675`
+| No -- names the four separations, no principle numbers
+| Rejected as a mapping source. No licence text visible.
+
+| Lean Methods, "Separation Principles" (from The Innovator's Toolkit)
+| No -- names time, space, scale, condition; no numbers
+| Rejected. No licence stated.
+
+| thinkinsights.net, "TRIZ Method" (Sridharan)
+| No -- time, space, condition only; no numbers tied to separation
+| Rejected.
+
+| Gemba Concepts (`?p=294`)
+| No -- the URL returned a blog index without the relevant content
+| Rejected.
+
+| `new.aitriz.org` PDF (2008)
+| Not verifiable -- compressed PDF, text not extractable
+| Rejected (unverified).
+
+| Chrzaszcz, TRIZ MAM 2/2018
+| Not verifiable -- HTTP 403
+| Rejected (unverified).
+
+| `substrate.dougbelshaw.com/triz`
+| No -- gives principle families, not separation types; the mapping comes from an AI helper per its own text
+| Rejected.
+
+| jeda.ai, clawhub "thinking-triz", skills.cat/skillsmp "physical-contradictions"
+| n/a
+| Rejected without use: AI-generated pages, no primary source, hallucination risk.
+
+| Mann / CREAX / Systematic Innovation material ("Hands-On Systematic Innovation", Matrix 2003/2010)
+| Would contain separation tables
+| Rejected by policy: proprietary / selectively licensed.
+
+| Savransky, "Engineering of Creativity"
+| Would contain separation tables
+| Rejected: not freely accessible.
+|===
+
+== Decision
+
+Only one independent source (MATRIZ) gives per-separation principle lists, so no
+pair reaches two independent votes. *No mapping is bundled.* For the record, the
+MATRIZ lists (not shipped, not tested, not used in code): space 1, 2, 3, 7, 4,
+17; time 9, 10, 11, 15, 34; relation 3, 17, 19, 31, 32, 40; system level 1, 5,
+12, 33. A later wave can add a mapping once a second independent source is found.
+
+== Caveats
+
+* The fourth separation is named variously ("system level", "parts and whole",
+  "scale"). The enum uses "on system level (parts and whole)"; "in relation" and
+  "upon condition" are treated as one entry, as in the MATRIZ source.
+* Several web pages repeat the same material; agreement between them is not
+  independence.
+* Retrieval used an automatic page summariser, not a manual read, for most pages.
+
+== Sources cited
+
+* https://wiki.matriz.org/docs/triz/problem-solving-tools-5890/contradictions/physical-contradiction-6056/algorithm-for-resolving-physical-contradictions/[MATRIZ wiki, Algorithm for resolving physical contradictions]
+* https://the-trizjournal.com/breaking-through-and-solving-problems/[TRIZ Journal, Breaking through and solving problems]
+* https://leanmethods.com/?p=1328[Lean Methods, Separation Principles]
+* https://thinkinsights.net/consulting/triz-method[Think Insights, TRIZ Method]

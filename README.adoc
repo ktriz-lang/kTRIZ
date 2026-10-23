@@ -78,7 +78,11 @@ What works today:
   substance S1, an optional second substance S2 acted on through an optional
   `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>), with
   SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>).
-* 390 Kotest test cases covering the above.
+* `physicalContradiction { }` and `SeparationPrinciple` -- a small DSL for
+  physical contradictions (one property in two opposite states) and the four
+  classical separation principles. No mapping to the 40 inventive principles is
+  bundled, deliberately (see <<physical-contradiction>>).
+* 422 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World
@@ -320,6 +324,44 @@ not drawn -- no placeholder shape is invented for it.
 Field/vertex labels are English-only in V1 (`FieldType.labelEn`, not
 `labelDe`).
 
+[#physical-contradiction]
+== Physical contradictions
+
+A physical contradiction says that one property of one element must be in two
+opposite states at once. `physicalContradiction { }` records it; the analyst may
+declare which of the four classical `SeparationPrinciple` values (`IN_SPACE`,
+`IN_TIME`, `UPON_CONDITION`, `ON_SYSTEM_LEVEL`) is meant to resolve it:
+
+[source,kotlin]
+----
+val pc = physicalContradiction {
+    element("Landing gear")
+    property("Presence")
+    state("present", because = "needed for landing")
+    oppositeState("absent", because = "causes drag in flight")
+    separation(SeparationPrinciple.IN_TIME)
+}
+----
+
+What is checked: all texts are non-blank and bounded (200 characters, 500 for
+the `because` texts), and the two states are *different* (trimmed, case-insensitive).
+What is not checked: whether the states are really *opposite* -- kTRIZ cannot
+judge that. An invented separation principle does not compile. No mapping from
+separation principles to inventive principles is bundled: only one freely
+available source gives one, see link:docs/physical-contradictions-provenance.adoc[docs/physical-contradictions-provenance.adoc].
+Rendering is out of scope for now.
+
+Running `ktriz run` on the test fixture
+`ktriz-tests/src/test/resources/physical-contradiction.ktriz.kts` prints:
+
+----
+Element: Landing gear
+Property: Presence
+State: present
+Opposite state: absent
+Separation: Separation in time / Trennung in der Zeit
+----
+
 [#the-compiler-as-oracle]
 == The compiler as oracle
 
@@ -342,8 +384,9 @@ loop actually consumes, not just the raw compiler text.
 [#scripting]
 == Running a `.ktriz.kts` script
 
-The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`
-and `dev.ktriz.function.*` are in scope by default -- no import needed, though
+The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`,
+`dev.ktriz.function.*`, `dev.ktriz.sufield.*`, `dev.ktriz.physical.*` and
+`dev.ktriz.render.kuml.*` are in scope by default -- no import needed, though
 writing one explicitly (as below) is harmless.
 
 === Build & run
@@ -673,6 +716,14 @@ A generic `mcpServers` entry, pointing at the `installDist` binary:
 | Builds and validates an `s1`/`s2`/`fieldType`/`quality` Su-Field model without saving or rendering it -- returns the normalized model plus an equivalent `suField { }` Kotlin snippet.
 | `malformed_input` (e.g. an invalid `fieldType`/`quality`), `self_contradiction` (quality/s2/fieldType mismatch).
 
+| `build_physical_contradiction`
+| Builds and validates a physical contradiction (`element`, `property`, `state`, `oppositeState`, optional `stateBecause`/`oppositeStateBecause`/`separation`) -- returns the normalized model plus an equivalent `physicalContradiction { }` snippet. Checks that the two states differ, not that they are opposite.
+| `malformed_input` (also invalid `separation`, over-long values), `self_contradiction` (equal states).
+
+| `list_separation_principles`
+| Lists the 4 classical separation principles with `id`, `symbol`, `labelEn`, `labelDe`. Reports `inventivePrincipleMapping: "none"`.
+| --
+
 | `render_su_field_svg`
 | Same arguments and validation as `build_su_field`; returns the triangle as a standalone SVG (text content plus `structuredContent.svg`, `format: "svg"`).
 | As `build_su_field`, plus `render_timeout`, `render_busy`, `render_output_too_large`.
@@ -748,7 +799,7 @@ matrix, with no server-side session state to manage or leak.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`, `physicalContradiction`, `SeparationPrinciple`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
 
 | `ktriz-script`
 | The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
@@ -781,7 +832,8 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 
 * Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is *done*: `ContradictionMatrixData.parse(...)` stays the public parser, `ContradictionMatrixSource.fromFile(path)` is the hardened file-based frontend, and the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own data source process-wide with no code change. Explicitly *not* included: Matrix 2003/2010/2022 (48-parameter) support -- such a file is still structurally rejected, because `EngineeringParameter` has 39 members and cells beyond that would be unaddressable through the typed lookup API (see kTRIZ-ADR-0003).
 * kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
-* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, and `lookup_standard_solution` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
+* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, `lookup_standard_solution`, `build_physical_contradiction`, and `list_separation_principles` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
+* Physical contradictions + separation principles -- *done*, see <<physical-contradiction>>. No inventive-principle mapping is bundled (evidence: one source only). Explicitly not included: ARIZ, a bridge from `SuField` to `StandardSolution`, rendering.
 * `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
 * Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
 * `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset -- `BOW_SPACING_PX = 9` px between adjacent edges' offsets within an adaptive `BOW_ENVELOPE_PX = 90` px envelope that narrows the spacing (down to a `BOW_MIN_SPACING_PX = 3` px floor) as the group grows, instead of a hard clamp, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking outward per additional self-loop on the same node within an adaptive `SELF_LOOP_ENVELOPE_PX = 120` px envelope, down to a `SELF_LOOP_MIN_STACK_STEP_PX = 3` px floor, instead of a hard clamp) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are placed by a greedy 2D collision-avoidance search (up to 12 candidate positions per edge, alternating above/below the route's midpoint, each level stepping out by the label's own measured height so consecutive levels never overlap) rather than a blind fixed-step stagger: each label is placed at the position with the least overlap area against every label and node box already placed, and a verb that still cannot avoid overlap is truncated with an ellipsis (carrying the full verb in a `<title>` tooltip) and re-searched, keeping whichever of the full or truncated text overlaps least.

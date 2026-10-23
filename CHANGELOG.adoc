@@ -6,6 +6,24 @@ without a deprecation period.
 
 == Unreleased
 
+=== Physical contradictions
+
+* New package `dev.ktriz.physical`: `PhysicalContradiction` +
+  `physicalContradiction { }` DSL (element, property, two states with optional
+  reasons, optional declared separation) and the `SeparationPrinciple` enum
+  (the four classical principles; not the Mann/CREAX set).
+* No mapping from separation principles to inventive principles is bundled:
+  only one freely available source was found, below the two-source rule; see
+  `docs/physical-contradictions-provenance.adoc`.
+* `dev.ktriz.physical.*` is now a default import in `.ktriz.kts` scripts.
+* KDoc fix in `Contradiction`: it no longer claims ADR-0001 defers physical
+  contradictions.
+
+=== MCP server (physical contradictions)
+
+* New tool `build_physical_contradiction` (validation plus Kotlin snippet).
+* New tool `list_separation_principles`.
+
 === MCP server
 
 * New tool `render_su_field_svg`: renders a validated Su-Field triangle as

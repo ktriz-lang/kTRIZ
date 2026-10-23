@@ -12,11 +12,10 @@ package dev.ktriz.core
  *     deliberate runtime check, in [init], with a message written to double as a repair
  *     signal for the generate-compile-repair loop.
  *
- * Named deliberately `Contradiction` (not `TechnicalContradiction`) is *not* the case:
- * V1 covers technical contradictions only, and kTRIZ-ADR-0001 keeps physical contradictions
- * (one parameter having to be high and low at once, resolved via separation principles) out
- * of V1 while requiring the type design not to block them. A future `PhysicalContradiction`
- * sits alongside this class without renaming it.
+ * V1 covers technical contradictions only. Physical contradictions (one property having to
+ * be in two opposite states at once, resolved via separation principles) were deferred in the
+ * DSL-surface design note and live in [dev.ktriz.physical.PhysicalContradiction]; the two
+ * classes sit side by side without renaming this one.
  */
 data class Contradiction(
     val improving: EngineeringParameter,

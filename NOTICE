@@ -46,6 +46,12 @@ six-field taxonomy, never the later MATCEMIB eight-field extension
 (Belski/Livotov/Mayer) or any other newer or differently attributed
 substance-field framework.
 
+The four classical separation principles (in space, in time, upon condition,
+on system level) are shipped by name only, as classical Altshuller terms.
+kTRIZ bundles no mapping from them to the 40 inventive principles (only one
+freely available source gave one) and no Mann/CREAX separation data; see
+docs/physical-contradictions-provenance.adoc.
+
 The 5-class structure of Altshuller's 76 TRIZ standard solutions for
 Su-Field analysis -- 13 + 23 + 6 + 17 + 17 = 76 -- is sourced from the
 MATRIZ wiki's "Standard Inventive Solutions (SIS)" page, (c) MATRIZ, which
