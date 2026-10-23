@@ -24,3 +24,15 @@ dependencies {
     implementation(libs.kuml.layout.api)
     implementation(libs.kuml.layout.elk)
 }
+
+// Unit tests for the module's internal geometry functions (anchor distribution, node sizing):
+// ktriz-tests only sees the public API (renderSvg), so these live next to the code they test.
+dependencies {
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    systemProperty("java.awt.headless", "true")
+}

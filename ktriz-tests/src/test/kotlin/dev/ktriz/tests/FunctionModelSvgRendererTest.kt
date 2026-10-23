@@ -844,7 +844,10 @@ class FunctionModelSvgRendererTest :
                 val midIdx = (coords.size / 4) * 2 // an even index near the middle
                 val px = coords[midIdx]
                 val py = coords[midIdx + 1]
-                return abs(dx * (ay - py) - (ax - px) * dy) / axisLen
+                // Signed (not abs): bundle routes are symmetric around the axis, so an unsigned
+                // distance folds the mirrored edges onto each other and reports false collisions
+                // once the endpoints are spread over distributed anchors.
+                return (dx * (ay - py) - (ax - px) * dy) / axisLen
             }
 
             val offsets = paths.map { midpointDistanceToAxis(it.getAttribute("d")) }.sorted()

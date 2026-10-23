@@ -1,5 +1,6 @@
 package dev.ktriz.render.kuml
 
+import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import java.awt.Font
@@ -66,15 +67,37 @@ private fun ceilToGrid(
     grid: Float,
 ): Float = ceil(value / grid) * grid
 
-/** Node size for [name] -- measured, padded, snapped to the width grid, clamped between min/max. */
-internal fun measureNodeSize(name: String): Size {
+/**
+ * Node size for [name] -- measured, padded, snapped to the width grid, clamped between min/max.
+ *
+ * [groupedEdgeCount] is the number of edge endpoints this node carries in multi-edge bundles
+ * (edges sharing a component pair with at least one other edge, self-loops excluded). With `0`
+ * the result is the plain text-driven size, unchanged. Otherwise the box additionally grows
+ * along the side the bundle docks to, so [ANCHOR_SPACING_PX] fits between neighbouring
+ * endpoints: the width for vertical layouts ([LayoutDirection.TopToBottom] /
+ * [LayoutDirection.BottomToTop]), the height for horizontal ones. Growth is capped at
+ * [MAX_NODE_WIDTH_PX] on either axis and snapped to the width grid.
+ */
+internal fun measureNodeSize(
+    name: String,
+    groupedEdgeCount: Int = 0,
+    direction: LayoutDirection = LayoutDirection.TopToBottom,
+): Size {
     val rawWidth = measuredTextWidthPx(name) * FONT_SUBSTITUTION_SLACK + 2 * NODE_PAD_X_PX
     val clampedWidth = rawWidth.coerceIn(MIN_NODE_WIDTH_PX, MAX_NODE_WIDTH_PX)
-    val width = ceilToGrid(clampedWidth, NODE_WIDTH_GRID_PX)
+    var width = ceilToGrid(clampedWidth, NODE_WIDTH_GRID_PX)
     // "Mg" is a generic ascent+descent reference, not name-dependent -- every node gets the
     // same height, only the width varies with the name (see this file's design note below).
     val metrics = measureFont.getStringBounds("Mg", frc)
-    val height = (ceil(-metrics.y).toFloat() + 2 * NODE_PAD_Y_PX).coerceAtLeast(MIN_NODE_HEIGHT_PX)
+    var height = (ceil(-metrics.y).toFloat() + 2 * NODE_PAD_Y_PX).coerceAtLeast(MIN_NODE_HEIGHT_PX)
+    if (groupedEdgeCount > 0) {
+        val need = groupedEdgeCount * ANCHOR_SPACING_PX + 2 * ANCHOR_CORNER_INSET_PX
+        val grown = ceilToGrid(min(need, MAX_NODE_WIDTH_PX), NODE_WIDTH_GRID_PX)
+        when (direction) {
+            LayoutDirection.TopToBottom, LayoutDirection.BottomToTop -> width = max(width, grown)
+            LayoutDirection.LeftToRight, LayoutDirection.RightToLeft -> height = max(height, grown)
+        }
+    }
     return Size(width = width, height = height)
 }
 

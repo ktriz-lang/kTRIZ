@@ -78,3 +78,30 @@ hardcoded line styles and no generic node/edge diagram entry point a
 `INSUFFICIENT` as a dashed stroke, `EXCESSIVE` as two parallel lines (the
 engineering-drawing convention for an over-strong connection), and `HARMFUL`
 as a sine-perturbed wavy path.
+
+=== Dense edge bundles
+
+When two or more edges connect the same pair of components, every edge gets
+its own end point on the node's box side instead of all lines converging on
+one spot. The end points are spread evenly along the side (at least 12 px
+from each corner, 14 px apart where the box allows it), edges running the
+same direction sit next to each other, and the lines bow apart in the middle
+without crossing. A component that carries such a bundle is widened to fit
+its end points, up to 320 px; components without a bundle keep their
+text-driven size, and a diagram without any bundle renders exactly as before.
+Wavy (`HARMFUL`) strokes inside a bundle use a smaller amplitude (at most 40%
+of the gap to the neighbouring end point) so they do not swing into the next
+line.
+
+Known limits:
+
+* The usable length of a 320 px box side is `320 - 2 x 12 = 296` px. A bundle
+  docks to one side of each of its two nodes, so its edges share that side.
+  The arrowhead is 8 px wide, which gives `296 / 8 = 37` edges: beyond about
+  37 edges between one pair the end points are closer than an arrowhead is
+  wide and neighbouring arrowheads touch (at 24 edges the gap is about 12 px).
+* Verb labels of a bundle of 24 edges can still cross neighbouring lines; the
+  label placement only avoids label/label and label/node overlap.
+* The route inside the bundle follows the ELK route for the pair, resampled;
+  lines can brush the neighbouring node or unrelated edges that ELK routed
+  around.

@@ -39,7 +39,7 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today (v0.3.1, pre-release, source only; 423 Kotest test cases):
+What works today (v0.3.1, pre-release, source only; 445 Kotest test cases):
 
 * The contradiction spine: all 39 engineering parameters and 40 inventive
   principles as Kotlin enums with English and German labels, `Contradiction`

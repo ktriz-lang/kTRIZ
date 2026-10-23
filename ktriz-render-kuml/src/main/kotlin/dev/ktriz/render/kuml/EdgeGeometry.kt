@@ -4,6 +4,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -29,6 +30,18 @@ internal const val SELF_LOOP_RETURN_FRACTION = 0.70f
 internal const val CANVAS_MARGIN_PX = 4f
 internal const val EDGE_LABEL_BASE_OFFSET_PX = 4f
 internal const val EDGE_LABEL_STACK_STEP_PX = 13f
+
+/** Target spacing between neighbouring edge endpoints on one box side for a multi-edge bundle. */
+internal const val ANCHOR_SPACING_PX = 14f
+
+/** No anchor is placed closer than this to a box corner, so arrowheads at the ends stay on the flat side. */
+internal const val ANCHOR_CORNER_INSET_PX = 12f
+
+/** Clearance kept between an anchor and the band of the right side a self-loop occupies. */
+internal const val SELF_LOOP_ANCHOR_CLEARANCE_PX = 4f
+
+/** Wave amplitude inside a bundle is at most this fraction of the neighbouring anchor spacing. */
+internal const val GROUP_WAVE_AMPLITUDE_FACTOR = 0.4f
 
 /**
  * Flattens any [EdgeRoute] into an ordered polyline from source to target, waypoints
@@ -177,11 +190,11 @@ internal fun wavyPathPoints(
  * Used before [bowOffset] so a multi-edge component pair's parallel routes get a dense, evenly
  * distributed set of points to bulge, rather than the sparse waypoints ELK itself returned.
  *
- * Only ever called when a component pair has two or more edges -- see
- * `FunctionModelSvgRenderer.kt`'s `computeEdgeBases`, which keeps a single edge on its raw
- * ELK route (2 points for an [EdgeRoute.Direct] route) instead of resampling it, so the
- * existing edge-label-midpoint test (which expects exactly 4 coordinates from a `Direct`
- * route's `d` attribute) keeps passing.
+ * Only ever called when a component pair has two or more edges -- directly by [deformRoute]
+ * (via `EdgeBundles.kt`), which also moves both ends onto distributed anchors. A single edge
+ * keeps its raw ELK route (2 points for an [EdgeRoute.Direct] route) instead of being
+ * resampled, so the existing edge-label-midpoint test (which expects exactly 4 coordinates
+ * from a `Direct` route's `d` attribute) keeps passing.
  */
 internal fun resampleEvenlyByArcLength(
     points: List<Point>,
@@ -351,3 +364,138 @@ internal fun arrowheadPoints(
 
 /** SVG `points` attribute for a polygon: `x0,y0 x1,y1 x2,y2 ...`. */
 internal fun List<Point>.toSvgPolygonPoints(): String = joinToString(" ") { "${it.x},${it.y}" }
+
+/** One side of a node box. Declaration order is the tie-break order of [nearestSide]. */
+internal enum class BoxSide { TOP, BOTTOM, LEFT, RIGHT }
+
+/**
+ * The side of [bounds] closest to [p] (distance to the side's line). Ties resolve in
+ * [BoxSide] declaration order (TOP, BOTTOM, LEFT, RIGHT), so the result is deterministic
+ * for points sitting exactly in a corner.
+ */
+internal fun nearestSide(
+    p: Point,
+    bounds: Rect,
+): BoxSide {
+    val x0 = bounds.origin.x
+    val y0 = bounds.origin.y
+    val x1 = x0 + bounds.size.width
+    val y1 = y0 + bounds.size.height
+    val candidates =
+        listOf(
+            BoxSide.TOP to abs(p.y - y0),
+            BoxSide.BOTTOM to abs(p.y - y1),
+            BoxSide.LEFT to abs(p.x - x0),
+            BoxSide.RIGHT to abs(p.x - x1),
+        )
+    var best = candidates[0]
+    for (c in candidates) if (c.second < best.second) best = c
+    return best.first
+}
+
+/**
+ * The coordinate ranges (along [side], i.e. x for TOP/BOTTOM and y for LEFT/RIGHT) where an
+ * anchor may sit: the side's length minus [ANCHOR_CORNER_INSET_PX] at both corners. For the RIGHT
+ * side of a node that carries self-loops (see [selfLoopPolyline]) the band the loop occupies
+ * (exit..return fraction of the height, widened by [SELF_LOOP_ANCHOR_CLEARANCE_PX]) is cut out,
+ * leaving up to two ranges. If cutting leaves nothing, or the box is too small for the corner
+ * inset, the function falls back to the uncut range (or the side's centre point) -- it never
+ * returns an empty list.
+ */
+internal fun usableSpans(
+    bounds: Rect,
+    side: BoxSide,
+    hasSelfLoops: Boolean,
+): List<ClosedFloatingPointRange<Float>> {
+    val (start, length) =
+        when (side) {
+            BoxSide.TOP, BoxSide.BOTTOM -> bounds.origin.x to bounds.size.width
+            BoxSide.LEFT, BoxSide.RIGHT -> bounds.origin.y to bounds.size.height
+        }
+    val lo = start + ANCHOR_CORNER_INSET_PX
+    val hi = start + length - ANCHOR_CORNER_INSET_PX
+    if (hi <= lo) {
+        val mid = start + length / 2f
+        return listOf(mid..mid)
+    }
+    val whole = lo..hi
+    if (side != BoxSide.RIGHT || !hasSelfLoops) return listOf(whole)
+    val bandLo = bounds.origin.y + bounds.size.height * SELF_LOOP_EXIT_FRACTION - SELF_LOOP_ANCHOR_CLEARANCE_PX
+    val bandHi = bounds.origin.y + bounds.size.height * SELF_LOOP_RETURN_FRACTION + SELF_LOOP_ANCHOR_CLEARANCE_PX
+    val pieces = mutableListOf<ClosedFloatingPointRange<Float>>()
+    if (minOf(hi, bandLo) > lo) pieces += lo..minOf(hi, bandLo)
+    if (hi > maxOf(lo, bandHi)) pieces += maxOf(lo, bandHi)..hi
+    return pieces.ifEmpty { listOf(whole) }
+}
+
+/**
+ * [count] anchor points on [side] of [bounds], ascending along the side, exactly on the box
+ * edge. Anchor `i` sits at `(i + 0.5) * total / count` of the concatenated [usableSpans], so the
+ * spacing is uniform inside one range. O(count + ranges); an empty list for `count == 0`.
+ */
+internal fun distributeAnchors(
+    bounds: Rect,
+    side: BoxSide,
+    count: Int,
+    hasSelfLoops: Boolean,
+): List<Point> {
+    require(count >= 0) { "count must be >= 0, was $count" }
+    if (count == 0) return emptyList()
+    val spans = usableSpans(bounds, side, hasSelfLoops)
+    val total = spans.sumOf { (it.endInclusive - it.start).toDouble() }.toFloat()
+    val x0 = bounds.origin.x
+    val y0 = bounds.origin.y
+    val x1 = x0 + bounds.size.width
+    val y1 = y0 + bounds.size.height
+
+    fun at(pos: Float): Point =
+        when (side) {
+            BoxSide.TOP -> Point(x = pos, y = y0)
+            BoxSide.BOTTOM -> Point(x = pos, y = y1)
+            BoxSide.LEFT -> Point(x = x0, y = pos)
+            BoxSide.RIGHT -> Point(x = x1, y = pos)
+        }
+    if (total <= 0f) return List(count) { at(spans.first().start) }
+    val out = ArrayList<Point>(count)
+    var spanIndex = 0
+    var spanStartOffset = 0f
+    for (i in 0 until count) {
+        val offset = (i + 0.5f) * total / count
+        while (spanIndex < spans.lastIndex &&
+            offset > spanStartOffset + (spans[spanIndex].endInclusive - spans[spanIndex].start)
+        ) {
+            spanStartOffset += spans[spanIndex].endInclusive - spans[spanIndex].start
+            spanIndex++
+        }
+        val span = spans[spanIndex]
+        val local = (offset - spanStartOffset).coerceIn(0f, span.endInclusive - span.start)
+        out += at(span.start + local)
+    }
+    return out
+}
+
+/**
+ * [raw] resampled to [BOW_SAMPLES] points and shifted so it starts exactly on [startAnchor] and
+ * ends exactly on [endAnchor]: each point moves by the linear blend of the start and end
+ * displacement (`t` = index fraction, i.e. arc-length fraction since the samples are even).
+ */
+internal fun deformRoute(
+    raw: List<Point>,
+    startAnchor: Point,
+    endAnchor: Point,
+): List<Point> {
+    val sampled = resampleEvenlyByArcLength(raw, BOW_SAMPLES)
+    val dsx = startAnchor.x - sampled.first().x
+    val dsy = startAnchor.y - sampled.first().y
+    val dex = endAnchor.x - sampled.last().x
+    val dey = endAnchor.y - sampled.last().y
+    val last = (sampled.size - 1).coerceAtLeast(1)
+    return sampled.mapIndexed { i, p ->
+        val t = i / last.toFloat()
+        Point(x = p.x + dsx + (dex - dsx) * t, y = p.y + dsy + (dey - dsy) * t)
+    }
+}
+
+/** Wave amplitude for a wavy edge inside a bundle: never larger than the single-edge amplitude, and at most 40% of the neighbouring anchor spacing. */
+internal fun groupWaveAmplitudePx(anchorSpacingPx: Float): Float =
+    minOf(WAVE_AMPLITUDE_PX, GROUP_WAVE_AMPLITUDE_FACTOR * anchorSpacingPx)

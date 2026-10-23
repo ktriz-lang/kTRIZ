@@ -6,6 +6,29 @@ without a deprecation period.
 
 == Unreleased
 
+=== Rendering
+
+* `FunctionModel.renderSvg()` routes dense edge bundles (two or more edges
+  between the same component pair) onto distinct anchor points along the node
+  box side instead of letting every line converge on the same spot: anchors
+  are spread evenly (12 px corner inset, about 14 px apart where the box
+  allows), edges running in the same direction sit together, and the bowed
+  lines no longer cross at their ends. The self-loop band on the right side
+  stays free of anchors.
+* A component carrying a bundle is widened to fit its anchors (capped at
+  320 px); other components and models without a bundle render byte-identically
+  to before (guarded by reference-SVG tests, also for Su-Field output).
+* Wavy (`HARMFUL`) strokes inside a bundle use an amplitude of at most 40% of
+  the gap to the neighbouring anchor.
+* Known limit: with more than about 37 edges between one pair the anchors are
+  closer than an arrowhead is wide (8 px) and neighbouring arrowheads touch;
+  verb labels of dense bundles can still cross neighbouring lines.
+* Tests: 445 (was 423) -- 15 unit tests for anchor distribution and node sizing
+  now live in `ktriz-render-kuml` (internal functions are not visible from
+  `ktriz-tests`), 7 new render tests in `ktriz-tests`; one existing test now
+  measures the bow offset signed instead of absolute, because mirrored edges
+  of a bundle no longer land on identical distances from the node axis.
+
 === Documentation
 
 * Guide titles under `docs/` now read `kTRIZ guide: ...` (no more duplicated

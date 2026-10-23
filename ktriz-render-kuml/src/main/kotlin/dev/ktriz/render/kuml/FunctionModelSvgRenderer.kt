@@ -45,9 +45,11 @@ private const val EMPTY_CANVAS_HEIGHT_PX = 120f
  * Every edge gets a triangular arrowhead at its target, oriented from the edge's own *base*
  * route geometry -- never from whichever stroke is actually drawn, so a wavy `HARMFUL` line's
  * arrowhead still points along the straight route axis (see `EdgeGeometry.kt`'s
- * `arrowheadPoints`). Two or more edges between the same unordered component pair bow apart via
- * a sine-shaped perpendicular offset so they stay individually visible (see `computeEdgeBases`
- * below); a single edge between a pair is left on its raw ELK route. Self-loops (`from == to`)
+ * `arrowheadPoints`). Two or more edges between the same unordered component pair form a bundle:
+ * each edge ends on its own anchor point along the node's box side (nodes carrying a bundle are
+ * widened, up to 320 px, so the anchors keep room between them) and the edges bow apart via a
+ * sine-shaped perpendicular offset so they stay individually visible (see `computeEdgeBases` and
+ * `EdgeBundles.kt`); a single edge between a pair is left on its raw ELK route. Self-loops (`from == to`)
  * draw a dedicated fixed-radius arc anchored on the node's right edge instead of relying on
  * ELK's own self-loop routing, and the canvas is widened to fit it if needed.
  *
@@ -67,7 +69,7 @@ public fun FunctionModel.renderSvg(): String {
         return svgDocument(width = EMPTY_CANVAS_WIDTH_PX, height = EMPTY_CANVAS_HEIGHT_PX, body = "")
     }
 
-    val result = ElkLayoutEngine().layout(graph = toLayoutGraph(), hints = LayoutHints.DEFAULT)
+    val result = ElkLayoutEngine().layout(graph = toLayoutGraph(LayoutHints.DEFAULT), hints = LayoutHints.DEFAULT)
     val geometry = computeEdgeBases(result)
     val labels = placeEdgeLabels(result, geometry.bases)
     val body = renderBody(result, geometry, labels)
@@ -129,18 +131,21 @@ private fun FunctionModel.canvasBoundsFor(
  */
 private data class EdgeGeometry(
     val bases: Map<Int, List<Point>>,
+    /** Wave amplitude per bundled edge; edges absent here (single edges, self-loops) use [WAVE_AMPLITUDE_PX]. */
+    val waveAmplitude: Map<Int, Float> = emptyMap(),
 )
 
 /**
  * Computes [EdgeGeometry.bases]: a self-loop gets its own circular arc ([selfLoopPolyline], ELK's
  * route for that edge is discarded); any other edge keeps its raw ELK route unless two or more
- * edges connect the same unordered component pair, in which case all of them are resampled to an
- * even point spacing and bowed apart ([resampleEvenlyByArcLength] + [bowOffset]) so they stay
- * individually visible instead of overlapping. A lone edge between a pair is returned unresampled,
- * on purpose -- see `EdgeGeometry.kt`'s `resampleEvenlyByArcLength` KDoc for why that distinction
- * matters for an existing test.
+ * edges connect the same unordered component pair. Such a bundle is routed by [bundleRoutes]:
+ * every endpoint gets its own anchor on the node's box side (nodes were grown to fit them, see
+ * `measureNodeSize`), the raw route is deformed onto the anchors and bowed apart, and wavy
+ * strokes get a smaller amplitude matched to the anchor spacing. A lone edge between a pair is
+ * returned unresampled, on purpose -- see `EdgeGeometry.kt`'s `resampleEvenlyByArcLength` KDoc
+ * for why that distinction matters for an existing test.
  *
- * Grouping is O(E): a single `groupBy` scan per edge kind, never an `indexOf()` lookup inside a
+ * Grouping is O(E): a single `groupBy` scan ([pairGroups]), never an `indexOf()` lookup inside a
  * loop -- important so a pathologically large multi-edge group does not become quadratic.
  */
 private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
@@ -156,52 +161,36 @@ private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
             group.forEach { iv -> selfLoopN[iv.index] = group.size }
         }
 
-    val pairK = HashMap<Int, Int>()
-    val pairN = HashMap<Int, Int>()
-    edges
-        .withIndex()
-        .filter { it.value.from.name != it.value.to.name }
-        .groupBy { listOf(it.value.from.name, it.value.to.name).sorted() }
-        .values
-        .forEach { group ->
-            group.forEachIndexed { k, iv -> pairK[iv.index] = k }
-            group.forEach { iv -> pairN[iv.index] = group.size }
-        }
+    val selfLoopNodes = edges.filter { it.from.name == it.to.name }.mapTo(HashSet()) { it.from.name }
+    val bundles = bundleRoutes(result, pairGroups(), selfLoopNodes)
 
     val out = LinkedHashMap<Int, List<Point>>()
+    val amplitudes = HashMap<Int, Float>()
     edges.forEachIndexed { index, edge ->
         if (edge.from.name == edge.to.name) {
             val bounds = result.nodes[NodeId(edge.from.name)]?.bounds ?: return@forEachIndexed
             val radius = selfLoopRadiusPx(bounds.size.height, selfLoopK.getValue(index), selfLoopN.getValue(index))
             out[index] = selfLoopPolyline(bounds, radius)
         } else {
-            val route = result.edges[EdgeId("e$index")] ?: return@forEachIndexed
-            val raw = route.polylinePoints()
-            // Degenerate route (e.g. one ELK could not route) -- nothing sane to draw.
-            if (raw.size < 2) return@forEachIndexed
-            val n = pairN.getValue(index)
-            out[index] =
-                if (n <= 1) {
-                    raw
-                } else {
-                    val k = pairK.getValue(index)
-                    // Canonical sign normalization: every edge of the same pair bows relative to
-                    // the alphabetically smaller component name as the "forward" direction,
-                    // regardless of the edge's actual from/to direction -- otherwise an A->B and
-                    // a B->A edge between the same pair could bow to the same side instead of
-                    // fanning out evenly.
-                    val forward = edge.from.name == minOf(edge.from.name, edge.to.name)
-                    val offset = bowOffsetFor(k, n).let { if (forward) it else -it }
-                    resampleEvenlyByArcLength(raw, BOW_SAMPLES).bowOffset(offset)
-                }
+            val bundle = bundles[index]
+            if (bundle != null) {
+                out[index] = bundle.points
+                amplitudes[index] = groupWaveAmplitudePx(bundle.anchorSpacingPx)
+            } else {
+                val route = result.edges[EdgeId("e$index")] ?: return@forEachIndexed
+                val raw = route.polylinePoints()
+                // Degenerate route (e.g. one ELK could not route) -- nothing sane to draw.
+                if (raw.size < 2) return@forEachIndexed
+                // A lone edge between a pair stays on its raw ELK route (bundled edges were
+                // handled above by bundleRoutes).
+                out[index] = raw
+            }
         }
     }
-    // selfLoopK/selfLoopN and pairK/pairN key-sets are disjoint (an edge is either a self-loop or
-    // not), and both only ever assign to indices also present in `out` -- edges dropped above
-    // (degenerate route, missing node bounds) simply have no entry in `out` and are skipped by
-    // every out[index]-keyed consumer below, so a stale entry for a dropped edge is harmless dead
-    // data.
-    return EdgeGeometry(bases = out)
+    // selfLoopK/selfLoopN and the bundle routes only ever assign to indices also present in
+    // `out` -- edges dropped above (degenerate route, missing node bounds) simply have no entry
+    // in `out` and are skipped by every out[index]-keyed consumer below.
+    return EdgeGeometry(bases = out, waveAmplitude = amplitudes)
 }
 
 /** A resolved, collision-checked verb-label placement for one edge -- see [placeEdgeLabels]. */
@@ -324,7 +313,7 @@ private fun FunctionModel.renderBody(
         edges.forEachIndexed { index, edge ->
             val base = geometry.bases[index] ?: return@forEachIndexed
             val placement = labels[index] ?: return@forEachIndexed
-            append(renderEdge(edge, base, placement))
+            append(renderEdge(edge, base, placement, geometry.waveAmplitude[index] ?: WAVE_AMPLITUDE_PX))
         }
         result.nodes.forEach { (nodeId, nodeLayout) ->
             append(renderNode(nodeId, nodeLayout.bounds))
@@ -353,6 +342,7 @@ private fun renderEdge(
     edge: FunctionEdge,
     base: List<Point>,
     placement: EdgeLabelPlacement,
+    waveAmplitudePx: Float,
 ): String {
     val style = edge.quality.strokeStyle()
     val paths: List<List<Point>> =
@@ -363,7 +353,7 @@ private fun renderEdge(
                     base.offsetPerpendicular(DOUBLE_STROKE_GAP_PX / 2f),
                     base.offsetPerpendicular(-DOUBLE_STROKE_GAP_PX / 2f),
                 )
-            EdgeStrokeStyle.WAVY -> listOf(wavyPathPoints(base))
+            EdgeStrokeStyle.WAVY -> listOf(wavyPathPoints(base, amplitudePx = waveAmplitudePx))
         }
     val dashAttr = if (style == EdgeStrokeStyle.DASHED) """ stroke-dasharray="$DASH_ARRAY"""" else ""
     val pathTags =
