@@ -1,0 +1,80 @@
+= Function models
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#function-model]
+== Function model
+
+A second small DSL, `functionModel { }`, models TRIZ function analysis: which
+components exist, and which functions connect them, judged useful, harmful,
+insufficient, or excessive.
+
+[source,kotlin]
+----
+import dev.ktriz.function.functionModel
+
+val fm = functionModel {
+    val engine = component("Engine")
+    val coolant = component("Coolant")
+    val block = component("Cylinder block")
+    useful(from = coolant, to = engine, verb = "cools")
+    harmful(from = engine, to = block, verb = "overheats")
+    insufficient(from = coolant, to = engine, verb = "circulates")
+}
+
+println("${fm.components.size} components, ${fm.edges.size} functions")
+fm.edges.forEach { e -> println("  ${e.from.name} --[${e.quality}]--> ${e.to.name} (${e.verb})") }
+----
+
+Expected output:
+
+----
+3 components, 3 functions
+  Coolant --[USEFUL]--> Engine (cools)
+  Engine --[HARMFUL]--> Cylinder block (overheats)
+  Coolant --[INSUFFICIENT]--> Engine (circulates)
+----
+
+Components declared by name are deduped automatically -- `component("Engine")`
+can be called again at any later edge site and always returns the same node,
+so callers do not need to pre-declare every component before using it.
+Self-loops (a component acting on itself, e.g. a part wearing itself out) are
+accepted on purpose -- see the KDoc on `FunctionModelBuilder` for the
+reasoning.
+
+[#function-model-svg]
+== Rendering a function model
+
+The `ktriz-render-kuml` module renders any `functionModel { }` to a
+standalone SVG document:
+
+[source,kotlin]
+----
+import dev.ktriz.function.functionModel
+import dev.ktriz.render.kuml.renderSvg
+
+val fm = functionModel {
+    val engine = component("Engine")
+    val coolant = component("Coolant")
+    val block = component("Cylinder block")
+    useful(from = coolant, to = engine, verb = "cools")
+    harmful(from = engine, to = block, verb = "overheats")
+    insufficient(from = coolant, to = engine, verb = "circulates")
+}
+
+File("function-model.svg").writeText(fm.renderSvg())
+----
+
+kUML is used here strictly as a *layout* library, not as a diagram renderer:
+`ElkLayoutEngine` (from `kuml-layout-elk`) computes node positions and edge
+routes for the component graph, and kTRIZ owns the actual SVG markup and the
+mapping from `FunctionQuality` to stroke style. This split exists because
+kUML's own SVG renderer (`kuml-io-svg`) is built around specific metamodel
+packages (UML, C4, SysML2, BPMN, Blueprint, ERM) with per-relationship-subtype
+hardcoded line styles and no generic node/edge diagram entry point a
+`FunctionModel` could plug into -- and no wavy/doubled-line concept a
+`FunctionQuality` could map onto. `USEFUL` renders as a plain solid stroke,
+`INSUFFICIENT` as a dashed stroke, `EXCESSIVE` as two parallel lines (the
+engineering-drawing convention for an over-strong connection), and `HARMFUL`
+as a sine-perturbed wavy path.

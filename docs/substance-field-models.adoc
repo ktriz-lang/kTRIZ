@@ -1,0 +1,132 @@
+= Substance-field models
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#su-field]
+== Substance-field models (Su-Field)
+
+A third small DSL, `suField { }`, models TRIZ substance-field analysis: an
+object substance S1, optionally acted on by a second substance S2 through a
+field, judged overall by one of five qualities.
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.FieldType.MECHANICAL
+import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
+import dev.ktriz.sufield.suField
+
+val sf = suField {
+    val workpiece = component("Workpiece")
+    val tool = component("Grinding wheel")
+    s1(workpiece)
+    s2(tool)
+    field(MECHANICAL)
+    quality(INSUFFICIENT)
+}
+
+println("${sf.s1.name} -[${sf.field}]-> ${sf.s2?.name} (${sf.quality})")
+----
+
+Expected output:
+
+----
+Workpiece -[MECHANICAL]-> Grinding wheel (INSUFFICIENT)
+----
+
+`s2` and `field` are nullable on purpose -- classical Su-Field analysis often
+starts from an incomplete triangle (just S1, nothing else identified yet) and
+treats "what to add" as the analytical question. A `SuField`'s `init` block
+enforces one consistency rule between `quality` and that nullability:
+`SuFieldQuality.INCOMPLETE` requires the triangle to actually be
+incomplete -- at least one of `s2`/`field` must be `null` -- while every other
+quality (`COMPLETE`, `INSUFFICIENT`, `EXCESSIVE`, `HARMFUL`) requires both to
+be set, because judging an effect's strength or harmfulness presupposes a
+structurally complete triangle to judge in the first place. A malformed
+combination throws `IllegalArgumentException` with a message naming both the
+declared quality and which slot is missing or unexpectedly present.
+
+NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
+`StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
+solutions -- see below), `StandardSolution` (the 76 individual solutions
+themselves, with an `ofCode` lookup by classical code, e.g. `"1.1.1"`), and
+SVG rendering of the S1-S2-Field triangle (see <<su-field-svg,Rendering a substance-field model>>; also
+available over MCP as `render_su_field_svg`, see link:mcp-server.adoc#mcp[MCP server]). What is
+explicitly out of scope -- and deliberately so, not deferred -- is a bridge
+function from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`
+or `StandardSolutionClass` (see kTRIZ-ADR-0001 and
+link:standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]
+for the reasoning).
+
+`StandardSolutionClass` carries the 5-class structure only -- id, English/
+German label, a one-sentence description, and a solution count per class
+(13/23/6/17/17, summing to 76):
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.StandardSolutionClass
+
+val cls = StandardSolutionClass.ofId(1)
+println("${cls.labelEn} (${cls.solutionCount} solutions)")
+----
+
+Expected output:
+
+----
+Building and destruction of Su-Fields (13 solutions)
+----
+
+[#su-field-svg]
+== Rendering a substance-field model
+
+The `ktriz-render-kuml` module also renders any `suField { }` to a
+standalone SVG document -- the classical S1-S2-Field triangle, F at the
+apex, S1 bottom-left, S2 bottom-right:
+
+[source,kotlin]
+----
+import dev.ktriz.sufield.FieldType.MECHANICAL
+import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
+import dev.ktriz.sufield.suField
+import dev.ktriz.render.kuml.renderSvg
+
+val sf = suField {
+    val workpiece = component("Workpiece")
+    val tool = component("Grinding wheel")
+    s1(workpiece)
+    s2(tool)
+    field(MECHANICAL)
+    quality(INSUFFICIENT)
+}
+
+File("su-field.svg").writeText(sf.renderSvg())
+----
+
+Unlike `FunctionModel.renderSvg()`, this renderer never calls kUML's ELK
+layout engine -- there is nothing to lay out. The triangle's geometry is
+fixed and deterministic (F at the apex, S1 bottom-left, S2 bottom-right,
+action reading right-to-left from S2 into S1), confirmed against two
+independent primary sources on classical Su-Field notation (MATRIZ's wiki
+and the worked figures in *Systematic Innovation*, "4 Su-Field Analysis and
+Standard Solutions", citing *A Thread in the Labyrinth*, Petrozavodsk:
+Karelia, 1988). An engine that ever placed the three vertices differently
+would be wrong, not merely suboptimal, so a layout engine has nothing to
+contribute here.
+
+`SuFieldQuality` maps to the same stroke vocabulary `FunctionQuality`
+already uses (MATRIZ: "Symbols of interactions used in Su-Field models are
+similar to those used in function modeling for devices"): `COMPLETE` a
+plain solid line, `INSUFFICIENT` dashed, `EXCESSIVE` two parallel lines,
+`HARMFUL` a sine-perturbed wavy path, and `INCOMPLETE` -- a structurally
+incomplete triangle -- draws no base line at all, because there is nothing
+to judge. The F-S1 and F-S2 legs are always a single plain solid line
+regardless of quality; they carry no judgement of their own and never get
+an arrowhead. S1/S2 render as small circles labelled `S1`/`S2` with the
+substance's name outside the circle; F renders as a circle with the field's
+classical symbol (e.g. `F` with a `Mec` subscript for
+`FieldType.MECHANICAL`) and the field's full name above it. A vertex that
+is absent (an incomplete triangle missing S2 and/or the field) is simply
+not drawn -- no placeholder shape is invented for it.
+
+Field/vertex labels are English-only in V1 (`FieldType.labelEn`, not
+`labelDe`).

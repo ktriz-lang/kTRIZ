@@ -1,0 +1,173 @@
+= MCP server
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#mcp]
+== MCP server
+
+kTRIZ ships a Model Context Protocol server, `ktriz-mcp`, exposing the DSL to
+LLM agents as tools over stdio. This is the same "compiler as oracle" idea
+from link:../README.adoc#the-compiler-as-oracle[in the README] applied at the protocol level: an agent
+that calls `list_engineering_parameters` first, then uses the returned
+`symbol` values verbatim, cannot hallucinate a parameter name -- and
+`resolve_contradiction`'s matrix lookup is a deterministic table read, never
+a generated guess. `list_field_types` and `list_standard_solution_classes`
+follow the exact same few-shot catalogue pattern for the Su-Field side of the
+DSL, ahead of `build_su_field`; `lookup_standard_solution` returns the 76
+individual standard solutions. `render_su_field_svg` and
+`render_function_model_svg` return SVG for a validated model.
+
+=== Build & run
+
+[source,shell]
+----
+./gradlew clean :ktriz-mcp:installDist
+./ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp   # speaks MCP over stdio
+----
+
+WARNING: Do not run `./gradlew :ktriz-mcp:run` for a real MCP client. Gradle's
+own console output shares stdout with the JSON-RPC stream the server speaks,
+so a client reading that stream sees corrupted output. Always launch the
+`installDist` binary directly.
+
+Alternatively, once `ktriz-cli` is installed (see link:../README.adoc#hello-world[Hello World]), the same
+server is reachable as a subcommand of the main `ktriz` binary:
+
+[source,shell]
+----
+./gradlew clean :ktriz-cli:installDist
+./ktriz-cli/build/install/ktriz/bin/ktriz mcp
+----
+
+Both entry points run the identical `buildServer()`/`runStdioServer()` code
+in `ktriz-mcp` -- `ktriz mcp` is a thin wrapper, not a second implementation.
+Client configuration below shows the standalone binary; point `command` at
+the `ktriz-cli` binary instead (`.../ktriz-cli/build/install/ktriz/bin/ktriz`)
+with `"args": ["mcp"]` if you prefer a single installed executable for both
+`ktriz run` and `ktriz mcp`.
+
+=== Client configuration
+
+A generic `mcpServers` entry, pointing at the `installDist` binary:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "ktriz": {
+      "command": "/absolute/path/to/kTRIZ/ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp"
+    }
+  }
+}
+----
+
+=== Tools
+
+[cols="1,2,2"]
+|===
+| Tool | Purpose | Notable errors
+
+| `list_engineering_parameters`
+| Lists all 39 engineering parameters with `id`, `symbol` (the exact Kotlin enum member), `labelEn`, `labelDe`.
+| --
+
+| `list_inventive_principles`
+| Same shape, for all 40 inventive principles.
+| --
+
+| `resolve_contradiction`
+| Looks up the classical matrix for `improving`/`worsening` (each accepts a symbol, an English/German label, or a `1..39` id) -- returns the recommended principles in rank order, plus a ready-to-use `contradiction(improving = ..., worsening = ...)` Kotlin snippet.
+| `unknown_parameter` (with "did you mean" suggestions), `self_contradiction`, `malformed_input`.
+
+| `build_function_model`
+| Builds and validates a `components`/`edges` TRIZ function model without saving or rendering it -- returns the normalized model plus an equivalent `functionModel { }` Kotlin snippet.
+| `malformed_input` (e.g. an invalid `quality`).
+
+| `list_field_types`
+| Lists all 6 classical Su-Field field types with `id`, `symbol`, `labelEn`, `labelDe`, `abbreviation`.
+| --
+
+| `list_standard_solution_classes`
+| Lists the 5-class structure of the 76 TRIZ standard solutions with `id`, `symbol`, `labelEn`, `labelDe`, `description`, `solutionCount`.
+| --
+
+| `build_su_field`
+| Builds and validates an `s1`/`s2`/`fieldType`/`quality` Su-Field model without saving or rendering it -- returns the normalized model plus an equivalent `suField { }` Kotlin snippet.
+| `malformed_input` (e.g. an invalid `fieldType`/`quality`), `self_contradiction` (quality/s2/fieldType mismatch).
+
+| `build_physical_contradiction`
+| Builds and validates a physical contradiction (`element`, `property`, `state`, `oppositeState`, optional `stateBecause`/`oppositeStateBecause`/`separation`) -- returns the normalized model plus an equivalent `physicalContradiction { }` snippet. Checks that the two states differ, not that they are opposite.
+| `malformed_input` (also invalid `separation`, over-long values), `self_contradiction` (equal states).
+
+| `list_separation_principles`
+| Lists the 4 classical separation principles with `id`, `symbol`, `labelEn`, `labelDe`. Reports `inventivePrincipleMapping: "none"`.
+| --
+
+| `render_su_field_svg`
+| Same arguments and validation as `build_su_field`; returns the triangle as a standalone SVG (text content plus `structuredContent.svg`, `format: "svg"`).
+| As `build_su_field`, plus `render_timeout`, `render_busy`, `render_output_too_large`.
+
+| `render_function_model_svg`
+| Same arguments as `build_function_model`, but with tighter limits (at most 60 components -- auto-declared edge endpoints included --, 150 edges and 20,000 characters of names and verbs in total); returns the laid-out model as a standalone SVG (`structuredContent`: `format`, `svg`, `componentCount`, `edgeCount`).
+| `malformed_input` (also for exceeding a limit), `render_timeout`, `render_busy`, `render_output_too_large`.
+
+| `lookup_standard_solution`
+| Looks up the 76 standard solutions: by `code` (e.g. `"1.1.1"`), by `standardClass` (1..5 or its symbol), or all 76 grouped by class when neither is given (`code` and `standardClass` are mutually exclusive). Source: a single TRIZ Journal series (Terninko/Domb/Miller 2000) -- see `docs/standard-solutions-provenance.adoc`. There is no mapping from a `SuField` to a solution.
+| `malformed_input`, `unknown_standard_solution` (lists all 76 valid codes).
+|===
+
+=== Rendering limits and latency
+
+The two render tools run the layout on a daemon worker thread with a fixed
+10 s deadline and at most 2 concurrent renders (a further call gets a
+`render_busy` error immediately; a call exceeding the deadline gets
+`render_timeout`). The deadline releases the *response*, not the worker: a
+layout run that ignores the interrupt keeps its slot until it really ends, so
+at most two such threads can ever exist. Output larger than 2,000,000
+characters is refused with `render_output_too_large`. All names are XML-escaped
+by the renderer. The servers start with `-Djava.awt.headless=true` (also set as
+the first statement of `main`), so no GUI toolkit or Dock icon is started.
+
+Measured on an Apple-silicon Mac with JDK 21 (`ktriz mcp` and the standalone
+`ktriz-mcp` behave the same): process start plus `initialize` about 0.17 s;
+first render after start (cold, class loading) about 0.33 s; later small
+renders about 3 ms; the maximum accepted function model (60 components, 150
+random edges) about 0.1 s.
+
+=== Example call
+
+[source,json]
+----
+{"name": "resolve_contradiction", "arguments": {"improving": "WEIGHT_OF_MOVING_OBJECT", "worsening": "STRENGTH"}}
+----
+
+returns (abbreviated), matching the link:../README.adoc#hello-world[Hello World] output in the README:
+
+[source,json]
+----
+{
+  "principles": [
+    {"rank": 1, "id": 28, "symbol": "MECHANICS_SUBSTITUTION"},
+    {"rank": 2, "id": 27, "symbol": "CHEAP_SHORT_LIVING_OBJECTS"},
+    {"rank": 3, "id": 18, "symbol": "MECHANICAL_VIBRATION"},
+    {"rank": 4, "id": 40, "symbol": "COMPOSITE_MATERIALS"}
+  ],
+  "empty": false,
+  "kotlin": "contradiction(\n    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,\n    worsening = EngineeringParameter.STRENGTH,\n)"
+}
+----
+
+Two semantics worth calling out explicitly, because a caller that gets them
+wrong ends up in an unnecessary repair loop:
+
+* **An empty `principles` list (`"empty": true`) is a valid result, not a
+  failure.** Many cells of the classical 39x39 matrix are legitimately blank
+  -- see link:contradiction-matrix.adoc#matrix[Contradiction matrix data].
+* **An unrecognized parameter is a structured `unknown_parameter` error with
+  suggestions, never a crash.** Call `list_engineering_parameters` first if
+  unsure of the exact symbol.
+
+kTRIZ is stateless across tool calls by design: every tool is a pure function
+over the fixed 39 parameters, 40 principles, and the immutable contradiction
+matrix, with no server-side session state to manage or leak.

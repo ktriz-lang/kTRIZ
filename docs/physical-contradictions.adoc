@@ -1,0 +1,42 @@
+= Physical contradictions
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#physical-contradiction]
+== Physical contradictions
+
+A physical contradiction says that one property of one element must be in two
+opposite states at once. `physicalContradiction { }` records it; the analyst may
+declare which of the four classical `SeparationPrinciple` values (`IN_SPACE`,
+`IN_TIME`, `UPON_CONDITION`, `ON_SYSTEM_LEVEL`) is meant to resolve it:
+
+[source,kotlin]
+----
+val pc = physicalContradiction {
+    element("Landing gear")
+    property("Presence")
+    state("present", because = "needed for landing")
+    oppositeState("absent", because = "causes drag in flight")
+    separation(SeparationPrinciple.IN_TIME)
+}
+----
+
+What is checked: all texts are non-blank and bounded (200 characters, 500 for
+the `because` texts), and the two states are *different* (trimmed, case-insensitive).
+What is not checked: whether the states are really *opposite* -- kTRIZ cannot
+judge that. An invented separation principle does not compile. No mapping from
+separation principles to inventive principles is bundled: only one freely
+available source gives one, see link:physical-contradictions-provenance.adoc[docs/physical-contradictions-provenance.adoc].
+Rendering is out of scope for now.
+
+Running `ktriz run` on the test fixture
+`ktriz-tests/src/test/resources/physical-contradiction.ktriz.kts` prints:
+
+----
+Element: Landing gear
+Property: Presence
+State: present
+Opposite state: absent
+Separation: Separation in time / Trennung in der Zeit
+----

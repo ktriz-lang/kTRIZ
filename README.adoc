@@ -13,10 +13,10 @@ solutions, physical contradictions with the four classical separation
 principles, the `*.ktriz.kts` scripting host (`ktriz run`), and an MCP server
 with twelve tools (`ktriz mcp`). Scripts run without a sandbox -- do not run
 untrusted code. Whether EU database rights attach to the bundled matrix
-compilation is not conclusively settled (see <<matrix>>). Deliberately not
+compilation is not conclusively settled (see link:docs/contradiction-matrix.adoc#matrix[Contradiction matrix data]). Deliberately not
 built: ARIZ (see link:docs/ariz-provenance.adoc[docs/ariz-provenance.adoc]) and
 a mapping from separation principles to the 40 inventive principles (see
-<<physical-contradiction>>).
+link:docs/physical-contradictions.adoc#physical-contradiction[Physical contradictions]).
 
 Licensed under the Apache License, Version 2.0. See link:LICENSE[LICENSE].
 
@@ -39,59 +39,57 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today:
+What works today (v0.3.0, pre-release, source only; 423 Kotest test cases):
 
-* All 39 classical Altshuller engineering parameters, as a Kotlin `enum` with
-  English and German labels.
-* All 40 classical inventive principles, same shape.
-* `Contradiction` + the `contradiction { }` factory, with a compiler-enforced
-  existence check (an invented parameter does not compile) and a runtime
-  well-formedness check (a parameter cannot contradict itself).
-* `ContradictionMatrix.lookup(...)` / `Contradiction.resolve()` -- a pure,
-  deterministic matrix lookup over the full classical 39x39 matrix, 1248
-  populated cells, loaded from a bundled classpath resource (see <<matrix>>).
-* A pluggable matrix-source seam: `ContradictionMatrixSource.fromFile(path)`
-  loads an operator-supplied matrix file through the same hardened gate and
-  parser as the bundled data, and the system property `ktriz.matrix.file`
-  swaps `ContradictionMatrix`'s own process-wide default with zero code
-  changes (see <<matrix>>).
-* `functionModel { }` -- a small DSL for TRIZ function analysis: `Component`
-  nodes and `FunctionEdge`s judged `USEFUL`/`HARMFUL`/`INSUFFICIENT`/
-  `EXCESSIVE`, with automatic component dedup by name (see <<function-model>>).
-* `FunctionModel.renderSvg()` (module `ktriz-render-kuml`) -- renders a
-  `functionModel { }` to a standalone SVG document, using kUML's
-  `kuml-layout-api`/`kuml-layout-elk` purely as a graph-layout engine (no
-  kUML metamodel, no kUML SVG renderer). `FunctionQuality` maps to a stroke
-  treatment: `USEFUL` solid, `INSUFFICIENT` dashed, `EXCESSIVE` a doubled
-  line, `HARMFUL` a wavy path (see <<function-model-svg>>).
-* An MCP server (module `ktriz-mcp`) exposing the 39 parameters, the 40
-  principles, the deterministic matrix lookup, TRIZ function-model and Su-Field
-  validation, SVG rendering of both model kinds, and the lookup of the 76
-  standard solutions as tools over stdio, for LLM agents (see <<mcp>>).
-* A `*.ktriz.kts` Kotlin scripting host (module `ktriz-script`,
-  `KtrizScriptHost.eval`/`evalSource`) that compiles and runs a script with
-  `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.sufield.*`/
-  `dev.ktriz.physical.*`/`dev.ktriz.render.kuml.*` in scope by default (the last of which makes
-  `FunctionModel.renderSvg()`/`SuField.renderSvg()` callable directly from a
-  script, no import needed), mapping every outcome -- success, compile error,
-  runtime error -- into a structured `KtrizScriptOutcome` with a stable
-  `KTRIZ-S-xxx` code, never a raw exception or stack trace. Exposed on the
-  command line as `ktriz run` (see <<scripting>>).
-* `suField { }` -- a small DSL for TRIZ substance-field analysis: an object
-  substance S1, an optional second substance S2 acted on through an optional
-  `FieldType`, judged overall by a `SuFieldQuality` (see <<su-field>>), with
-  SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>).
-* `physicalContradiction { }` and `SeparationPrinciple` -- a small DSL for
-  physical contradictions (one property in two opposite states) and the four
-  classical separation principles. No mapping to the 40 inventive principles is
-  bundled, deliberately (see <<physical-contradiction>>).
-* 423 Kotest test cases covering the above.
+* The contradiction spine: all 39 engineering parameters and 40 inventive
+  principles as Kotlin enums with English and German labels, `Contradiction`
+  with a compiler-enforced existence check, and a deterministic lookup over the
+  full classical 39x39 matrix (1248 populated cells).
+* Function models (`functionModel { }`) and substance-field models
+  (`suField { }`), both with SVG rendering, plus the 76 classical standard
+  solutions.
+* Physical contradictions (`physicalContradiction { }`) with the four
+  classical separation principles.
+* A `*.ktriz.kts` scripting host (`ktriz run`) and an MCP server with twelve
+  tools (`ktriz mcp`) for LLM agents.
+
+[#documentation]
+== Documentation
+
+[cols="1,3"]
+|===
+| Topic | What it covers
+
+| link:docs/function-models.adoc[Function models]
+| `functionModel { }`, the four function qualities, SVG rendering with kUML's layout engine.
+
+| link:docs/substance-field-models.adoc[Substance-field models]
+| `suField { }`, field types, the 5 standard-solution classes and 76 standard solutions, SVG rendering of the S1-S2-Field triangle.
+
+| link:docs/physical-contradictions.adoc[Physical contradictions]
+| `physicalContradiction { }` and the four classical separation principles.
+
+| link:docs/contradiction-matrix.adoc[Contradiction matrix data]
+| Where the 1248 cells come from, the pluggable matrix source, the open database-right question.
+
+| link:docs/scripting.adoc[Scripting]
+| Running `.ktriz.kts` scripts with `ktriz run`, JSON output, rendering an SVG from a script.
+
+| link:docs/mcp-server.adoc[MCP server]
+| `ktriz mcp`, client configuration, the twelve tools, render limits, an example call.
+
+| link:docs/roadmap.adoc[Roadmap]
+| What is done, what is deliberately not built.
+
+| Provenance
+| link:docs/matrix-provenance.adoc[Matrix], link:docs/standard-solutions-provenance.adoc[standard solutions], link:docs/physical-contradictions-provenance.adoc[physical contradictions], link:docs/ariz-provenance.adoc[ARIZ].
+|===
 
 [#hello-world]
 == Hello World
 
 This first example is plain Kotlin; the equivalent as a `.ktriz.kts` script
-is shown in <<scripting>>.
+is shown in link:docs/scripting.adoc#scripting[Running a script].
 
 [source,kotlin]
 ----
@@ -123,248 +121,6 @@ Contradiction: Weight of moving object up vs. Strength down
   #40  Composite materials
 ----
 
-[#function-model]
-== Function model
-
-A second small DSL, `functionModel { }`, models TRIZ function analysis: which
-components exist, and which functions connect them, judged useful, harmful,
-insufficient, or excessive.
-
-[source,kotlin]
-----
-import dev.ktriz.function.functionModel
-
-val fm = functionModel {
-    val engine = component("Engine")
-    val coolant = component("Coolant")
-    val block = component("Cylinder block")
-    useful(from = coolant, to = engine, verb = "cools")
-    harmful(from = engine, to = block, verb = "overheats")
-    insufficient(from = coolant, to = engine, verb = "circulates")
-}
-
-println("${fm.components.size} components, ${fm.edges.size} functions")
-fm.edges.forEach { e -> println("  ${e.from.name} --[${e.quality}]--> ${e.to.name} (${e.verb})") }
-----
-
-Expected output:
-
-----
-3 components, 3 functions
-  Coolant --[USEFUL]--> Engine (cools)
-  Engine --[HARMFUL]--> Cylinder block (overheats)
-  Coolant --[INSUFFICIENT]--> Engine (circulates)
-----
-
-Components declared by name are deduped automatically -- `component("Engine")`
-can be called again at any later edge site and always returns the same node,
-so callers do not need to pre-declare every component before using it.
-Self-loops (a component acting on itself, e.g. a part wearing itself out) are
-accepted on purpose -- see the KDoc on `FunctionModelBuilder` for the
-reasoning.
-
-[#function-model-svg]
-== Rendering a function model
-
-The `ktriz-render-kuml` module renders any `functionModel { }` to a
-standalone SVG document:
-
-[source,kotlin]
-----
-import dev.ktriz.function.functionModel
-import dev.ktriz.render.kuml.renderSvg
-
-val fm = functionModel {
-    val engine = component("Engine")
-    val coolant = component("Coolant")
-    val block = component("Cylinder block")
-    useful(from = coolant, to = engine, verb = "cools")
-    harmful(from = engine, to = block, verb = "overheats")
-    insufficient(from = coolant, to = engine, verb = "circulates")
-}
-
-File("function-model.svg").writeText(fm.renderSvg())
-----
-
-kUML is used here strictly as a *layout* library, not as a diagram renderer:
-`ElkLayoutEngine` (from `kuml-layout-elk`) computes node positions and edge
-routes for the component graph, and kTRIZ owns the actual SVG markup and the
-mapping from `FunctionQuality` to stroke style. This split exists because
-kUML's own SVG renderer (`kuml-io-svg`) is built around specific metamodel
-packages (UML, C4, SysML2, BPMN, Blueprint, ERM) with per-relationship-subtype
-hardcoded line styles and no generic node/edge diagram entry point a
-`FunctionModel` could plug into -- and no wavy/doubled-line concept a
-`FunctionQuality` could map onto. `USEFUL` renders as a plain solid stroke,
-`INSUFFICIENT` as a dashed stroke, `EXCESSIVE` as two parallel lines (the
-engineering-drawing convention for an over-strong connection), and `HARMFUL`
-as a sine-perturbed wavy path.
-
-[#su-field]
-== Substance-field models (Su-Field)
-
-A third small DSL, `suField { }`, models TRIZ substance-field analysis: an
-object substance S1, optionally acted on by a second substance S2 through a
-field, judged overall by one of five qualities.
-
-[source,kotlin]
-----
-import dev.ktriz.sufield.FieldType.MECHANICAL
-import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
-import dev.ktriz.sufield.suField
-
-val sf = suField {
-    val workpiece = component("Workpiece")
-    val tool = component("Grinding wheel")
-    s1(workpiece)
-    s2(tool)
-    field(MECHANICAL)
-    quality(INSUFFICIENT)
-}
-
-println("${sf.s1.name} -[${sf.field}]-> ${sf.s2?.name} (${sf.quality})")
-----
-
-Expected output:
-
-----
-Workpiece -[MECHANICAL]-> Grinding wheel (INSUFFICIENT)
-----
-
-`s2` and `field` are nullable on purpose -- classical Su-Field analysis often
-starts from an incomplete triangle (just S1, nothing else identified yet) and
-treats "what to add" as the analytical question. A `SuField`'s `init` block
-enforces one consistency rule between `quality` and that nullability:
-`SuFieldQuality.INCOMPLETE` requires the triangle to actually be
-incomplete -- at least one of `s2`/`field` must be `null` -- while every other
-quality (`COMPLETE`, `INSUFFICIENT`, `EXCESSIVE`, `HARMFUL`) requires both to
-be set, because judging an effect's strength or harmfulness presupposes a
-structurally complete triangle to judge in the first place. A malformed
-combination throws `IllegalArgumentException` with a message naming both the
-declared quality and which slot is missing or unexpectedly present.
-
-NOTE: This wave ships the core `SuField` data model, the `suField { }` DSL,
-`StandardSolutionClass` (the 5-class structure of the 76 TRIZ standard
-solutions -- see below), `StandardSolution` (the 76 individual solutions
-themselves, with an `ofCode` lookup by classical code, e.g. `"1.1.1"`), and
-SVG rendering of the S1-S2-Field triangle (see <<su-field-svg>>; also
-available over MCP as `render_su_field_svg`, see <<mcp>>). What is
-explicitly out of scope -- and deliberately so, not deferred -- is a bridge
-function from a `SuField`/`SuFieldQuality` to a specific `StandardSolution`
-or `StandardSolutionClass` (see kTRIZ-ADR-0001 and
-link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc]
-for the reasoning).
-
-`StandardSolutionClass` carries the 5-class structure only -- id, English/
-German label, a one-sentence description, and a solution count per class
-(13/23/6/17/17, summing to 76):
-
-[source,kotlin]
-----
-import dev.ktriz.sufield.StandardSolutionClass
-
-val cls = StandardSolutionClass.ofId(1)
-println("${cls.labelEn} (${cls.solutionCount} solutions)")
-----
-
-Expected output:
-
-----
-Building and destruction of Su-Fields (13 solutions)
-----
-
-[#su-field-svg]
-== Rendering a substance-field model
-
-The `ktriz-render-kuml` module also renders any `suField { }` to a
-standalone SVG document -- the classical S1-S2-Field triangle, F at the
-apex, S1 bottom-left, S2 bottom-right:
-
-[source,kotlin]
-----
-import dev.ktriz.sufield.FieldType.MECHANICAL
-import dev.ktriz.sufield.SuFieldQuality.INSUFFICIENT
-import dev.ktriz.sufield.suField
-import dev.ktriz.render.kuml.renderSvg
-
-val sf = suField {
-    val workpiece = component("Workpiece")
-    val tool = component("Grinding wheel")
-    s1(workpiece)
-    s2(tool)
-    field(MECHANICAL)
-    quality(INSUFFICIENT)
-}
-
-File("su-field.svg").writeText(sf.renderSvg())
-----
-
-Unlike `FunctionModel.renderSvg()`, this renderer never calls kUML's ELK
-layout engine -- there is nothing to lay out. The triangle's geometry is
-fixed and deterministic (F at the apex, S1 bottom-left, S2 bottom-right,
-action reading right-to-left from S2 into S1), confirmed against two
-independent primary sources on classical Su-Field notation (MATRIZ's wiki
-and the worked figures in *Systematic Innovation*, "4 Su-Field Analysis and
-Standard Solutions", citing *A Thread in the Labyrinth*, Petrozavodsk:
-Karelia, 1988). An engine that ever placed the three vertices differently
-would be wrong, not merely suboptimal, so a layout engine has nothing to
-contribute here.
-
-`SuFieldQuality` maps to the same stroke vocabulary `FunctionQuality`
-already uses (MATRIZ: "Symbols of interactions used in Su-Field models are
-similar to those used in function modeling for devices"): `COMPLETE` a
-plain solid line, `INSUFFICIENT` dashed, `EXCESSIVE` two parallel lines,
-`HARMFUL` a sine-perturbed wavy path, and `INCOMPLETE` -- a structurally
-incomplete triangle -- draws no base line at all, because there is nothing
-to judge. The F-S1 and F-S2 legs are always a single plain solid line
-regardless of quality; they carry no judgement of their own and never get
-an arrowhead. S1/S2 render as small circles labelled `S1`/`S2` with the
-substance's name outside the circle; F renders as a circle with the field's
-classical symbol (e.g. `F` with a `Mec` subscript for
-`FieldType.MECHANICAL`) and the field's full name above it. A vertex that
-is absent (an incomplete triangle missing S2 and/or the field) is simply
-not drawn -- no placeholder shape is invented for it.
-
-Field/vertex labels are English-only in V1 (`FieldType.labelEn`, not
-`labelDe`).
-
-[#physical-contradiction]
-== Physical contradictions
-
-A physical contradiction says that one property of one element must be in two
-opposite states at once. `physicalContradiction { }` records it; the analyst may
-declare which of the four classical `SeparationPrinciple` values (`IN_SPACE`,
-`IN_TIME`, `UPON_CONDITION`, `ON_SYSTEM_LEVEL`) is meant to resolve it:
-
-[source,kotlin]
-----
-val pc = physicalContradiction {
-    element("Landing gear")
-    property("Presence")
-    state("present", because = "needed for landing")
-    oppositeState("absent", because = "causes drag in flight")
-    separation(SeparationPrinciple.IN_TIME)
-}
-----
-
-What is checked: all texts are non-blank and bounded (200 characters, 500 for
-the `because` texts), and the two states are *different* (trimmed, case-insensitive).
-What is not checked: whether the states are really *opposite* -- kTRIZ cannot
-judge that. An invented separation principle does not compile. No mapping from
-separation principles to inventive principles is bundled: only one freely
-available source gives one, see link:docs/physical-contradictions-provenance.adoc[docs/physical-contradictions-provenance.adoc].
-Rendering is out of scope for now.
-
-Running `ktriz run` on the test fixture
-`ktriz-tests/src/test/resources/physical-contradiction.ktriz.kts` prints:
-
-----
-Element: Landing gear
-Property: Presence
-State: present
-Opposite state: absent
-Separation: Separation in time / Trennung in der Zeit
-----
-
 [#the-compiler-as-oracle]
 == The compiler as oracle
 
@@ -379,421 +135,10 @@ Unresolved reference 'STRUCTURAL_INTEGRITY'.
 That error message is itself a repair signal a generate-compile-repair loop
 can act on -- there is no such thing as a plausible-looking but wrong
 parameter name in kTRIZ, because parameters that do not exist do not compile.
-<<scripting,Below>>, the same error appears in its fully structured form, as
+link:docs/scripting.adoc#scripting[In the scripting guide], the same error appears in its fully structured form, as
 `ktriz run` reports it via a `KtrizScriptOutcome.CompilationError` with the
 line/column the diagnostic points at -- the shape a generate-compile-repair
 loop actually consumes, not just the raw compiler text.
-
-[#scripting]
-== Running a `.ktriz.kts` script
-
-The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`,
-`dev.ktriz.function.*`, `dev.ktriz.sufield.*`, `dev.ktriz.physical.*` and
-`dev.ktriz.render.kuml.*` are in scope by default -- no import needed, though
-writing one explicitly (as below) is harmless.
-
-=== Build & run
-
-`./gradlew clean check` (see <<building>>) does not produce a `ktriz`
-executable -- build the CLI's install image explicitly, then run it directly:
-
-[source,shell]
-----
-./gradlew clean :ktriz-cli:installDist
-./ktriz-cli/build/install/ktriz/bin/ktriz run hello-world.ktriz.kts
-----
-
-Note the install directory is named `ktriz`, not `ktriz-cli`
-(`ktriz-cli/build/install/*ktriz*/bin/ktriz`) -- `ktriz-cli/build.gradle.kts`
-sets `applicationName = "ktriz"` explicitly so the binary and its `ktriz mcp`/
-`ktriz run`/`ktriz help` subcommands read naturally, so this does *not*
-follow the `<module>/build/install/<module>/bin/<module>` pattern
-<<mcp,`ktriz-mcp` below>> uses. The `$ ktriz ...` examples below assume that
-binary is on your `PATH` (e.g. via a symlink).
-
-[source,kotlin]
-----
-// hello-world.ktriz.kts
-val problem = contradiction(
-    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
-    worsening = EngineeringParameter.STRENGTH,
-)
-val principles = problem.resolve()
-
-println("Widerspruch: ${problem.improving.labelDe} ↑  vs.  ${problem.worsening.labelDe} ↓")
-println("Empfohlene erfinderische Prinzipien:")
-principles.forEach { p -> println("  #${p.id}  ${p.labelDe}  (${p.labelEn})") }
-----
-
-[source,shell]
-----
-$ ktriz run hello-world.ktriz.kts
-Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓
-Empfohlene erfinderische Prinzipien:
-  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)
-  #27  Billige Kurzlebigkeit  (Cheap short-living objects)
-  #18  Mechanische Schwingungen  (Mechanical vibration)
-  #40  Verbundwerkstoffe  (Composite materials)
-----
-
-In text mode the script's own `println` output goes straight to stdout, exit
-code `0`. Add `--output json` for a single structured JSON document instead --
-`ktriz run` captures the script's stdout for you and puts it in the `"stdout"`
-field, rather than mixing it into the surrounding JSON:
-
-[source,shell]
-----
-$ ktriz run hello-world.ktriz.kts --output json
-{"status":"success","returnType":null,"stdout":"Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓\nEmpfohlene erfinderische Prinzipien:\n  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)\n  #27  Billige Kurzlebigkeit  (Cheap short-living objects)\n  #18  Mechanische Schwingungen  (Mechanical vibration)\n  #40  Verbundwerkstoffe  (Composite materials)\n"}
-----
-
-=== Rendering an SVG from a script
-
-`ktriz-script` depends on `ktriz-render-kuml` (see <<function-model-svg>>
-and <<su-field-svg>>), and `dev.ktriz.render.kuml.*` is a default import, so
-both `FunctionModel.renderSvg()` and `SuField.renderSvg()` are callable from
-a script with no import at all -- and, since `dev.ktriz.sufield.*` is also a
-default import, `suField { }` itself needs no import either:
-
-`ktriz run`'s runtime classpath now also carries kUML's ELK-based layout
-engine (`kuml-layout-api`/`kuml-layout-elk`, pulling in ELK/EMF/Guava --
-~15 additional jars). Measured impact:
-`ktriz-cli/build/install/ktriz/lib` grows from 73M to 82M, and
-`ktriz run hello-world.ktriz.kts` wall-clock time is statistically
-indistinguishable before/after (~1.7-2.0s either way, dominated by JVM/Kotlin
-scripting-engine startup, not by classpath size) -- three local runs each,
-Linux, warm OS file cache.
-
-[source,kotlin]
-----
-// function-model-svg.ktriz.kts
-val fm =
-    functionModel {
-        val engine = component("Engine")
-        val coolant = component("Coolant")
-        useful(from = coolant, to = engine, verb = "cools")
-    }
-
-val svg = fm.renderSvg()
-println(svg)
-svg
-----
-
-[source,shell]
-----
-$ ktriz run function-model-svg.ktriz.kts
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ..." width="..." height="...">
-<path d="..." fill="none" stroke="#333333" stroke-width="2.0"/><polygon points="..." fill="#333333"/><text x="..." y="..." text-anchor="middle" font-family="..." font-size="...">cools</text><rect x="..." y="..." width="..." height="..." fill="#ffffff" stroke="#000000" stroke-width="2.0"/><text x="..." y="..." text-anchor="middle" dominant-baseline="middle" font-family="..." font-size="...">Engine</text>
-...
-</svg>
-----
-
-Note the script's last expression (`svg`) is also its return value, so
-`--output json`'s `returnType` field reports `kotlin.String` here -- unlike
-the `hello-world.ktriz.kts` example above, whose last statement is a `val`
-declaration and whose `returnType` is therefore `null`. `returnValue` itself
-is never serialized into the JSON output (only `status`/`returnType`/`stdout`
-are, see the table below) -- the full SVG document is available in the
-`"stdout"` field, exactly as with the text-mode run above.
-
-The `STRUCTURAL_INTEGRITY` case from <<the-compiler-as-oracle,above>> is the
-concrete generate-compile-repair signal: a `worsening = ... STRUCTURAL_INTEGRITY`
-that does not exist among the 39 parameters fails to compile, and `ktriz run`
-reports it structured rather than as a raw stack trace:
-
-[source,shell]
-----
-$ ktriz run bogus-parameter.ktriz.kts
-Script failed to compile:
-  [ERROR] (line 10, column 38) Unresolved reference 'STRUCTURAL_INTEGRITY'.
-
-$ ktriz run bogus-parameter.ktriz.kts --output json
-{"status":"error","errorKind":"compilation_error","code":"KTRIZ-S-001","diagnostics":[{"severity":"ERROR","message":"Unresolved reference 'STRUCTURAL_INTEGRITY'.","line":10,"column":38}]}
-----
-
-Both exit `1`. A generate-compile-repair loop consuming the JSON form reads
-`errorKind`/`code` to branch on the failure kind and `diagnostics[].message`
-to feed back to the model, without parsing free-text output.
-
-A second, complementary TDG layer sits at runtime rather than compile time: a
-parameter *can* contradict itself syntactically (`worsening` given the same
-enum member as `improving`), so `Contradiction`'s `init` block enforces that
-invariant with `require`, and `ktriz run` reports the resulting
-`IllegalArgumentException` the same structured way:
-
-[source,shell]
-----
-$ ktriz run self-contradiction.ktriz.kts
-Script threw at runtime (java.lang.IllegalArgumentException): A contradiction needs two *different* parameters, but both were 'Strength'. A parameter cannot contradict itself.
-----
-
-WARNING: A `.ktriz.kts` script is arbitrary Kotlin and runs with **no
-sandbox** -- the full rights of the invoking user, the same trust level as
-`kotlinc -script` or a `build.gradle.kts` you run locally. `ktriz run` never
-resolves a script over the network (a path that looks like a URI, e.g.
-`https://...` or `file://...`, is rejected outright, see `SOURCE_REMOTE_URI`
-below) and rejects a script file over 1 MiB (`SOURCE_TOO_LARGE`) as a
-denial-of-service leitplanke -- neither of those is a sandbox, and a script
-within those limits may do anything a trusted local process can do. Only run
-scripts you trust.
-
-[cols="1,3"]
-|===
-| `KtrizScriptOutcome` case | Meaning
-
-| `Success`
-| Compiled and ran without throwing. `returnValue`/`returnTypeName` are `null` when the script's last expression was `Unit` (the normal shape for a `println`-based script) -- that is *not* a failure.
-
-| `CompilationError` (`KTRIZ-S-001`)
-| Syntax, type, or unresolved-reference error. `diagnostics` holds at least one `"ERROR"`-severity entry with the message/line/column.
-
-| `RuntimeError` (`KTRIZ-S-002`)
-| The script threw at runtime. Carries only the exception class and message, never a stack trace.
-
-| `NotEvaluated` (`KTRIZ-S-003`)
-| The scripting host returned no result at all.
-
-| `SourceRejected` (`KTRIZ-S-010`..`KTRIZ-S-015`)
-| The `.ktriz.kts` file was rejected before anything compiled or ran: a blank path, a URI-shaped path, a missing file, a non-regular file, an unreadable file, or a file over the 1 MiB limit.
-|===
-
-[#matrix]
-== Contradiction matrix data
-
-The classical Altshuller contradiction matrix is, in substance, generally
-treated as public domain by the TRIZ community's goodwill. But a concrete,
-digitised *transcription* of that matrix can separately attract an EU sui
-generis database right even where the underlying facts are free -- and later,
-commercially maintained matrices (Matrix 2003 / 2010 / 2022) remain under
-their authors' copyright and are licensed selectively.
-
-kTRIZ ships its own reconciled compilation of the classical 39x39 matrix
-(1248 populated cells), built from four independent, freely available
-transcriptions rather than copied from any single one: a cell is accepted
-when at least two of the four sources agree on it verbatim. kTRIZ ships and
-will ship no data from the later Matrix 2003/2010/2022. Full sourcing, the
-reconciliation method, and known anomalies are documented in
-link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]. This closes
-the *data* gap ADR-0003 tracked; the *legal* question it also tracked -- the
-EU sui generis database right on a concrete transcription -- stays an open,
-explicitly unresolved position; see kTRIZ-ADR-0003 for the current status.
-
-The parsing itself, `ContradictionMatrixData.parse(reader, provenance)`, is
-the pluggable matrix-source seam ADR-0003 calls for: it is a public, pure
-function of any `Reader`, so a user who holds a Matrix 2003/2010/2022 licence
-can parse their own file locally into the same shape, without kTRIZ ever
-shipping, downloading, or bundling that data itself.
-
-`ContradictionMatrixSource` builds a hardened, discoverable mechanism on top
-of that seam:
-
-[source,kotlin]
-----
-// Programmatically -- hold your own matrix explicitly, ContradictionMatrix's
-// process-wide default stays untouched:
-val house = ContradictionMatrixSource.fromFile(Path.of("/opt/triz/house-matrix.csv"))
-val principles = contradiction(
-    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
-    worsening = EngineeringParameter.STRENGTH,
-).resolve(house)
-----
-
-[source,shell]
-----
-# Process-wide, no code change -- applies to ktriz run, ktriz mcp, and any embedding:
-java -Dktriz.matrix.file=/opt/triz/house-matrix.csv -jar app.jar
-
-# Via the installed CLI (the application start script passes KTRIZ_OPTS through):
-KTRIZ_OPTS="-Dktriz.matrix.file=/opt/triz/house-matrix.csv" ktriz run problem.ktriz.kts
-----
-
-The file named by `ktriz.matrix.file` must be an absolute local path (never
-a URL -- kTRIZ never downloads matrix data), a regular, readable file no
-larger than 4 MiB, strictly UTF-8 encoded, and it is parsed through the exact same
-`ContradictionMatrixData.parse` validation the bundled matrix uses -- no
-second, laxer path, and the `1..39` parameter-id guardrail (see below)
-applies to it exactly as it does to the bundled data. If the override file
-is missing, malformed, or otherwise fails to load, kTRIZ aborts rather than
-silently falling back to the bundled classical matrix -- a silent fallback
-would mean an operator believes they are using their own matrix while
-actually getting classical results.
-
-Not supported, on any layer: parsing a Matrix 2003/2010/2022 (48-parameter)
-file. `ContradictionMatrixData.parse`'s `1..39` range check is a structural
-guardrail (see kTRIZ-ADR-0003), not merely a default -- `EngineeringParameter`
-has exactly 39 members, so a cell addressing parameter 42 would be
-permanently unreachable through the typed lookup API even if the parser
-accepted it.
-
-[#mcp]
-== MCP server
-
-kTRIZ ships a Model Context Protocol server, `ktriz-mcp`, exposing the DSL to
-LLM agents as tools over stdio. This is the same "compiler as oracle" idea
-from <<the-compiler-as-oracle,above>> applied at the protocol level: an agent
-that calls `list_engineering_parameters` first, then uses the returned
-`symbol` values verbatim, cannot hallucinate a parameter name -- and
-`resolve_contradiction`'s matrix lookup is a deterministic table read, never
-a generated guess. `list_field_types` and `list_standard_solution_classes`
-follow the exact same few-shot catalogue pattern for the Su-Field side of the
-DSL, ahead of `build_su_field`; `lookup_standard_solution` returns the 76
-individual standard solutions. `render_su_field_svg` and
-`render_function_model_svg` return SVG for a validated model.
-
-=== Build & run
-
-[source,shell]
-----
-./gradlew clean :ktriz-mcp:installDist
-./ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp   # speaks MCP over stdio
-----
-
-WARNING: Do not run `./gradlew :ktriz-mcp:run` for a real MCP client. Gradle's
-own console output shares stdout with the JSON-RPC stream the server speaks,
-so a client reading that stream sees corrupted output. Always launch the
-`installDist` binary directly.
-
-Alternatively, once `ktriz-cli` is installed (see <<hello-world>>), the same
-server is reachable as a subcommand of the main `ktriz` binary:
-
-[source,shell]
-----
-./gradlew clean :ktriz-cli:installDist
-./ktriz-cli/build/install/ktriz/bin/ktriz mcp
-----
-
-Both entry points run the identical `buildServer()`/`runStdioServer()` code
-in `ktriz-mcp` -- `ktriz mcp` is a thin wrapper, not a second implementation.
-Client configuration below shows the standalone binary; point `command` at
-the `ktriz-cli` binary instead (`.../ktriz-cli/build/install/ktriz/bin/ktriz`)
-with `"args": ["mcp"]` if you prefer a single installed executable for both
-`ktriz run` and `ktriz mcp`.
-
-=== Client configuration
-
-A generic `mcpServers` entry, pointing at the `installDist` binary:
-
-[source,json]
-----
-{
-  "mcpServers": {
-    "ktriz": {
-      "command": "/absolute/path/to/kTRIZ/ktriz-mcp/build/install/ktriz-mcp/bin/ktriz-mcp"
-    }
-  }
-}
-----
-
-=== Tools
-
-[cols="1,2,2"]
-|===
-| Tool | Purpose | Notable errors
-
-| `list_engineering_parameters`
-| Lists all 39 engineering parameters with `id`, `symbol` (the exact Kotlin enum member), `labelEn`, `labelDe`.
-| --
-
-| `list_inventive_principles`
-| Same shape, for all 40 inventive principles.
-| --
-
-| `resolve_contradiction`
-| Looks up the classical matrix for `improving`/`worsening` (each accepts a symbol, an English/German label, or a `1..39` id) -- returns the recommended principles in rank order, plus a ready-to-use `contradiction(improving = ..., worsening = ...)` Kotlin snippet.
-| `unknown_parameter` (with "did you mean" suggestions), `self_contradiction`, `malformed_input`.
-
-| `build_function_model`
-| Builds and validates a `components`/`edges` TRIZ function model without saving or rendering it -- returns the normalized model plus an equivalent `functionModel { }` Kotlin snippet.
-| `malformed_input` (e.g. an invalid `quality`).
-
-| `list_field_types`
-| Lists all 6 classical Su-Field field types with `id`, `symbol`, `labelEn`, `labelDe`, `abbreviation`.
-| --
-
-| `list_standard_solution_classes`
-| Lists the 5-class structure of the 76 TRIZ standard solutions with `id`, `symbol`, `labelEn`, `labelDe`, `description`, `solutionCount`.
-| --
-
-| `build_su_field`
-| Builds and validates an `s1`/`s2`/`fieldType`/`quality` Su-Field model without saving or rendering it -- returns the normalized model plus an equivalent `suField { }` Kotlin snippet.
-| `malformed_input` (e.g. an invalid `fieldType`/`quality`), `self_contradiction` (quality/s2/fieldType mismatch).
-
-| `build_physical_contradiction`
-| Builds and validates a physical contradiction (`element`, `property`, `state`, `oppositeState`, optional `stateBecause`/`oppositeStateBecause`/`separation`) -- returns the normalized model plus an equivalent `physicalContradiction { }` snippet. Checks that the two states differ, not that they are opposite.
-| `malformed_input` (also invalid `separation`, over-long values), `self_contradiction` (equal states).
-
-| `list_separation_principles`
-| Lists the 4 classical separation principles with `id`, `symbol`, `labelEn`, `labelDe`. Reports `inventivePrincipleMapping: "none"`.
-| --
-
-| `render_su_field_svg`
-| Same arguments and validation as `build_su_field`; returns the triangle as a standalone SVG (text content plus `structuredContent.svg`, `format: "svg"`).
-| As `build_su_field`, plus `render_timeout`, `render_busy`, `render_output_too_large`.
-
-| `render_function_model_svg`
-| Same arguments as `build_function_model`, but with tighter limits (at most 60 components -- auto-declared edge endpoints included --, 150 edges and 20,000 characters of names and verbs in total); returns the laid-out model as a standalone SVG (`structuredContent`: `format`, `svg`, `componentCount`, `edgeCount`).
-| `malformed_input` (also for exceeding a limit), `render_timeout`, `render_busy`, `render_output_too_large`.
-
-| `lookup_standard_solution`
-| Looks up the 76 standard solutions: by `code` (e.g. `"1.1.1"`), by `standardClass` (1..5 or its symbol), or all 76 grouped by class when neither is given (`code` and `standardClass` are mutually exclusive). Source: a single TRIZ Journal series (Terninko/Domb/Miller 2000) -- see `docs/standard-solutions-provenance.adoc`. There is no mapping from a `SuField` to a solution.
-| `malformed_input`, `unknown_standard_solution` (lists all 76 valid codes).
-|===
-
-=== Rendering limits and latency
-
-The two render tools run the layout on a daemon worker thread with a fixed
-10 s deadline and at most 2 concurrent renders (a further call gets a
-`render_busy` error immediately; a call exceeding the deadline gets
-`render_timeout`). The deadline releases the *response*, not the worker: a
-layout run that ignores the interrupt keeps its slot until it really ends, so
-at most two such threads can ever exist. Output larger than 2,000,000
-characters is refused with `render_output_too_large`. All names are XML-escaped
-by the renderer. The servers start with `-Djava.awt.headless=true` (also set as
-the first statement of `main`), so no GUI toolkit or Dock icon is started.
-
-Measured on an Apple-silicon Mac with JDK 21 (`ktriz mcp` and the standalone
-`ktriz-mcp` behave the same): process start plus `initialize` about 0.17 s;
-first render after start (cold, class loading) about 0.33 s; later small
-renders about 3 ms; the maximum accepted function model (60 components, 150
-random edges) about 0.1 s.
-
-=== Example call
-
-[source,json]
-----
-{"name": "resolve_contradiction", "arguments": {"improving": "WEIGHT_OF_MOVING_OBJECT", "worsening": "STRENGTH"}}
-----
-
-returns (abbreviated), matching the <<hello-world,Hello World>> output above:
-
-[source,json]
-----
-{
-  "principles": [
-    {"rank": 1, "id": 28, "symbol": "MECHANICS_SUBSTITUTION"},
-    {"rank": 2, "id": 27, "symbol": "CHEAP_SHORT_LIVING_OBJECTS"},
-    {"rank": 3, "id": 18, "symbol": "MECHANICAL_VIBRATION"},
-    {"rank": 4, "id": 40, "symbol": "COMPOSITE_MATERIALS"}
-  ],
-  "empty": false,
-  "kotlin": "contradiction(\n    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,\n    worsening = EngineeringParameter.STRENGTH,\n)"
-}
-----
-
-Two semantics worth calling out explicitly, because a caller that gets them
-wrong ends up in an unnecessary repair loop:
-
-* **An empty `principles` list (`"empty": true`) is a valid result, not a
-  failure.** Many cells of the classical 39x39 matrix are legitimately blank
-  -- see <<matrix>>.
-* **An unrecognized parameter is a structured `unknown_parameter` error with
-  suggestions, never a crash.** Call `list_engineering_parameters` first if
-  unsure of the exact symbol.
-
-kTRIZ is stateless across tool calls by design: every tool is a pure function
-over the fixed 39 parameters, 40 principles, and the immutable contradiction
-matrix, with no server-side session state to manage or leak.
 
 == Modules
 
@@ -805,16 +150,16 @@ matrix, with no server-side session state to manage or leak.
 | The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`, `physicalContradiction`, `SeparationPrinciple`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
 
 | `ktriz-script`
-| The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see <<scripting>>.
+| The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see link:docs/scripting.adoc#scripting[Running a script].
 
 | `ktriz-cli`
-| Command-line entry point. `ktriz mcp` (see <<mcp>>); `ktriz run <script.ktriz.kts> [--output json]` (see <<scripting>>); `ktriz help`.
+| Command-line entry point. `ktriz mcp` (see link:docs/mcp-server.adoc#mcp[MCP server]); `ktriz run <script.ktriz.kts> [--output json]` (see link:docs/scripting.adoc#scripting[Running a script]); `ktriz help`.
 
 | `ktriz-render-kuml`
-| Renders `functionModel { }` and `suField { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` for the function-model path (layout only, no kUML metamodel/rendering dependency); the Su-Field path uses only kUML's plain geometry types (`Point`/`Rect`/`Size`), never the layout engine itself -- see <<su-field-svg>>.
+| Renders `functionModel { }` and `suField { }` to SVG. Depends on `ktriz-core` and kUML's `kuml-layout-api`/`kuml-layout-elk` for the function-model path (layout only, no kUML metamodel/rendering dependency); the Su-Field path uses only kUML's plain geometry types (`Point`/`Rect`/`Size`), never the layout engine itself -- see link:docs/substance-field-models.adoc#su-field-svg[Rendering a substance-field model].
 
 | `ktriz-mcp`
-| MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` and `ktriz-render-kuml` (pulls ELK/EMF/Guava transitively; runs headless); also reachable via `ktriz mcp` in `ktriz-cli` (see <<mcp>>).
+| MCP server exposing the DSL to LLM agents as tools over stdio. Depends on `ktriz-core` and `ktriz-render-kuml` (pulls ELK/EMF/Guava transitively; runs headless); also reachable via `ktriz mcp` in `ktriz-cli` (see link:docs/mcp-server.adoc#mcp[MCP server]).
 
 | `ktriz-tests`
 | Kotest test suite for `ktriz-core`, `ktriz-script`, `ktriz-render-kuml`, `ktriz-mcp`, and `ktriz-cli`.
@@ -830,45 +175,8 @@ Requires JDK 21 (set `JAVA_HOME` explicitly if your default JDK differs).
 ./gradlew clean check
 ----
 
-[#roadmap]
-== Roadmap
-
-* Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see <<matrix>> and link:docs/matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is *done*: `ContradictionMatrixData.parse(...)` stays the public parser, `ContradictionMatrixSource.fromFile(path)` is the hardened file-based frontend, and the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own data source process-wide with no code change. Explicitly *not* included: Matrix 2003/2010/2022 (48-parameter) support -- such a file is still structurally rejected, because `EngineeringParameter` has 39 members and cells beyond that would be unaddressable through the typed lookup API (see kTRIZ-ADR-0003).
-* kUML-based SVG rendering for `functionModel { }` -- *done*, see <<function-model-svg>>. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
-* MCP server -- *done*, see <<mcp>>. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, `lookup_standard_solution`, `build_physical_contradiction`, and `list_separation_principles` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
-* Physical contradictions + separation principles -- *done*, see <<physical-contradiction>>. No inventive-principle mapping is bundled (evidence: one source only). Explicitly not included: ARIZ (sources disagree on the step level and the licence is unclear, see link:docs/ariz-provenance.adoc[docs/ariz-provenance.adoc]), a bridge from `SuField` to `StandardSolution`, rendering.
-* `*.ktriz.kts` Kotlin scripting host -- *done*, see <<scripting>>. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.sufield.*`/`dev.ktriz.physical.*`/`dev.ktriz.render.kuml.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
-* Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see <<scripting>> and <<mcp>>). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see <<scripting>>'s "Rendering an SVG from a script" example.
-* `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset -- `BOW_SPACING_PX = 9` px between adjacent edges' offsets within an adaptive `BOW_ENVELOPE_PX = 90` px envelope that narrows the spacing (down to a `BOW_MIN_SPACING_PX = 3` px floor) as the group grows, instead of a hard clamp, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking outward per additional self-loop on the same node within an adaptive `SELF_LOOP_ENVELOPE_PX = 120` px envelope, down to a `SELF_LOOP_MIN_STACK_STEP_PX = 3` px floor, instead of a hard clamp) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are placed by a greedy 2D collision-avoidance search (up to 12 candidate positions per edge, alternating above/below the route's midpoint, each level stepping out by the label's own measured height so consecutive levels never overlap) rather than a blind fixed-step stagger: each label is placed at the position with the least overlap area against every label and node box already placed, and a verb that still cannot avoid overlap is truncated with an ellipsis (carrying the full verb in a `<title>` tooltip) and re-searched, keeping whichever of the full or truncated text overlaps least.
-* Substance-field models (Su-Field) -- *done* (core model + DSL), see
-  <<su-field>>. Standard solution classes -- *done* (5-class structure), see
-  link:docs/standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc].
-  The 76 individual standard solutions are *done* as `StandardSolution`
-  (classical code + owning `StandardSolutionClass` + a short English-only
-  statement per solution, English-only because no verified German-language
-  transcription of the 76-item list exists), sourced from a 5-part TRIZ
-  Journal article series (Terninko, Domb &
-  Miller, 2000) -- see the provenance doc's caveats section: this is a single
-  authorial-voice source, not a majority-reconciled compilation like the
-  contradiction matrix, and its authors describe the list as their own
-  "interpretation" rather than a verbatim Altshuller translation. As with
-  `StandardSolutionClass`, kTRIZ deliberately provides no
-  `suggestStandardSolution(suField)`-style bridge from a `SuField`/
-  `SuFieldQuality` to a specific standard solution -- see the provenance doc's
-  "No SuField/SuFieldQuality-to-StandardSolution bridge function" section.
-  SVG rendering of the S1-S2-Field triangle -- *done*, see <<su-field-svg>>:
-  fixed, deterministic geometry (no kUML layout engine involved -- the
-  classical triangle has nothing to lay out), reusing `FunctionQuality`'s
-  stroke vocabulary for `SuFieldQuality` per MATRIZ's own "similar symbols"
-  statement. An MCP tool for Su-Field -- *done*, see <<mcp>>: `build_su_field`
-  (construction + validation), `render_su_field_svg` and
-  `render_function_model_svg` (SVG rendering, with limits, deadline and
-  concurrency cap), plus the `list_field_types`/`list_standard_solution_classes`
-  catalogue tools and `lookup_standard_solution` over the 76 individual
-  solutions -- *done*. There is still deliberately no bridge from a `SuField`
-  to a `StandardSolution`.
-
 == Licence
 
 Apache License, Version 2.0. See link:LICENSE[LICENSE] and link:NOTICE[NOTICE].
 See link:CHANGELOG.adoc[CHANGELOG.adoc] for release notes.
+

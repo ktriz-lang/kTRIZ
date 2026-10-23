@@ -1,0 +1,72 @@
+= Contradiction matrix data
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#matrix]
+== Contradiction matrix data
+
+The classical Altshuller contradiction matrix is, in substance, generally
+treated as public domain by the TRIZ community's goodwill. But a concrete,
+digitised *transcription* of that matrix can separately attract an EU sui
+generis database right even where the underlying facts are free -- and later,
+commercially maintained matrices (Matrix 2003 / 2010 / 2022) remain under
+their authors' copyright and are licensed selectively.
+
+kTRIZ ships its own reconciled compilation of the classical 39x39 matrix
+(1248 populated cells), built from four independent, freely available
+transcriptions rather than copied from any single one: a cell is accepted
+when at least two of the four sources agree on it verbatim. kTRIZ ships and
+will ship no data from the later Matrix 2003/2010/2022. Full sourcing, the
+reconciliation method, and known anomalies are documented in
+link:matrix-provenance.adoc[docs/matrix-provenance.adoc]. This closes
+the *data* gap ADR-0003 tracked; the *legal* question it also tracked -- the
+EU sui generis database right on a concrete transcription -- stays an open,
+explicitly unresolved position; see kTRIZ-ADR-0003 for the current status.
+
+The parsing itself, `ContradictionMatrixData.parse(reader, provenance)`, is
+the pluggable matrix-source seam ADR-0003 calls for: it is a public, pure
+function of any `Reader`, so a user who holds a Matrix 2003/2010/2022 licence
+can parse their own file locally into the same shape, without kTRIZ ever
+shipping, downloading, or bundling that data itself.
+
+`ContradictionMatrixSource` builds a hardened, discoverable mechanism on top
+of that seam:
+
+[source,kotlin]
+----
+// Programmatically -- hold your own matrix explicitly, ContradictionMatrix's
+// process-wide default stays untouched:
+val house = ContradictionMatrixSource.fromFile(Path.of("/opt/triz/house-matrix.csv"))
+val principles = contradiction(
+    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
+    worsening = EngineeringParameter.STRENGTH,
+).resolve(house)
+----
+
+[source,shell]
+----
+# Process-wide, no code change -- applies to ktriz run, ktriz mcp, and any embedding:
+java -Dktriz.matrix.file=/opt/triz/house-matrix.csv -jar app.jar
+
+# Via the installed CLI (the application start script passes KTRIZ_OPTS through):
+KTRIZ_OPTS="-Dktriz.matrix.file=/opt/triz/house-matrix.csv" ktriz run problem.ktriz.kts
+----
+
+The file named by `ktriz.matrix.file` must be an absolute local path (never
+a URL -- kTRIZ never downloads matrix data), a regular, readable file no
+larger than 4 MiB, strictly UTF-8 encoded, and it is parsed through the exact same
+`ContradictionMatrixData.parse` validation the bundled matrix uses -- no
+second, laxer path, and the `1..39` parameter-id guardrail (see below)
+applies to it exactly as it does to the bundled data. If the override file
+is missing, malformed, or otherwise fails to load, kTRIZ aborts rather than
+silently falling back to the bundled classical matrix -- a silent fallback
+would mean an operator believes they are using their own matrix while
+actually getting classical results.
+
+Not supported, on any layer: parsing a Matrix 2003/2010/2022 (48-parameter)
+file. `ContradictionMatrixData.parse`'s `1..39` range check is a structural
+guardrail (see kTRIZ-ADR-0003), not merely a default -- `EngineeringParameter`
+has exactly 39 members, so a cell addressing parameter 42 would be
+permanently unreachable through the typed lookup API even if the parser
+accepted it.

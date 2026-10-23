@@ -1,0 +1,178 @@
+= Scripting: running a .ktriz.kts script
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#scripting]
+== Running a `.ktriz.kts` script
+
+The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`,
+`dev.ktriz.function.*`, `dev.ktriz.sufield.*`, `dev.ktriz.physical.*` and
+`dev.ktriz.render.kuml.*` are in scope by default -- no import needed, though
+writing one explicitly (as below) is harmless.
+
+=== Build & run
+
+`./gradlew clean check` (see link:../README.adoc#building[Building]) does not produce a `ktriz`
+executable -- build the CLI's install image explicitly, then run it directly:
+
+[source,shell]
+----
+./gradlew clean :ktriz-cli:installDist
+./ktriz-cli/build/install/ktriz/bin/ktriz run hello-world.ktriz.kts
+----
+
+Note the install directory is named `ktriz`, not `ktriz-cli`
+(`ktriz-cli/build/install/*ktriz*/bin/ktriz`) -- `ktriz-cli/build.gradle.kts`
+sets `applicationName = "ktriz"` explicitly so the binary and its `ktriz mcp`/
+`ktriz run`/`ktriz help` subcommands read naturally, so this does *not*
+follow the `<module>/build/install/<module>/bin/<module>` pattern
+link:mcp-server.adoc#mcp[`ktriz-mcp` (MCP server guide)] uses. The `$ ktriz ...` examples below assume that
+binary is on your `PATH` (e.g. via a symlink).
+
+[source,kotlin]
+----
+// hello-world.ktriz.kts
+val problem = contradiction(
+    improving = EngineeringParameter.WEIGHT_OF_MOVING_OBJECT,
+    worsening = EngineeringParameter.STRENGTH,
+)
+val principles = problem.resolve()
+
+println("Widerspruch: ${problem.improving.labelDe} ↑  vs.  ${problem.worsening.labelDe} ↓")
+println("Empfohlene erfinderische Prinzipien:")
+principles.forEach { p -> println("  #${p.id}  ${p.labelDe}  (${p.labelEn})") }
+----
+
+[source,shell]
+----
+$ ktriz run hello-world.ktriz.kts
+Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓
+Empfohlene erfinderische Prinzipien:
+  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)
+  #27  Billige Kurzlebigkeit  (Cheap short-living objects)
+  #18  Mechanische Schwingungen  (Mechanical vibration)
+  #40  Verbundwerkstoffe  (Composite materials)
+----
+
+In text mode the script's own `println` output goes straight to stdout, exit
+code `0`. Add `--output json` for a single structured JSON document instead --
+`ktriz run` captures the script's stdout for you and puts it in the `"stdout"`
+field, rather than mixing it into the surrounding JSON:
+
+[source,shell]
+----
+$ ktriz run hello-world.ktriz.kts --output json
+{"status":"success","returnType":null,"stdout":"Widerspruch: Gewicht eines beweglichen Objekts ↑  vs.  Festigkeit ↓\nEmpfohlene erfinderische Prinzipien:\n  #28  Ersetzen mechanischer Wirkprinzipien  (Mechanics substitution)\n  #27  Billige Kurzlebigkeit  (Cheap short-living objects)\n  #18  Mechanische Schwingungen  (Mechanical vibration)\n  #40  Verbundwerkstoffe  (Composite materials)\n"}
+----
+
+=== Rendering an SVG from a script
+
+`ktriz-script` depends on `ktriz-render-kuml` (see link:function-models.adoc#function-model-svg[Rendering a function model]
+and link:substance-field-models.adoc#su-field-svg[Rendering a substance-field model]), and `dev.ktriz.render.kuml.*` is a default import, so
+both `FunctionModel.renderSvg()` and `SuField.renderSvg()` are callable from
+a script with no import at all -- and, since `dev.ktriz.sufield.*` is also a
+default import, `suField { }` itself needs no import either:
+
+`ktriz run`'s runtime classpath now also carries kUML's ELK-based layout
+engine (`kuml-layout-api`/`kuml-layout-elk`, pulling in ELK/EMF/Guava --
+~15 additional jars). Measured impact:
+`ktriz-cli/build/install/ktriz/lib` grows from 73M to 82M, and
+`ktriz run hello-world.ktriz.kts` wall-clock time is statistically
+indistinguishable before/after (~1.7-2.0s either way, dominated by JVM/Kotlin
+scripting-engine startup, not by classpath size) -- three local runs each,
+Linux, warm OS file cache.
+
+[source,kotlin]
+----
+// function-model-svg.ktriz.kts
+val fm =
+    functionModel {
+        val engine = component("Engine")
+        val coolant = component("Coolant")
+        useful(from = coolant, to = engine, verb = "cools")
+    }
+
+val svg = fm.renderSvg()
+println(svg)
+svg
+----
+
+[source,shell]
+----
+$ ktriz run function-model-svg.ktriz.kts
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ..." width="..." height="...">
+<path d="..." fill="none" stroke="#333333" stroke-width="2.0"/><polygon points="..." fill="#333333"/><text x="..." y="..." text-anchor="middle" font-family="..." font-size="...">cools</text><rect x="..." y="..." width="..." height="..." fill="#ffffff" stroke="#000000" stroke-width="2.0"/><text x="..." y="..." text-anchor="middle" dominant-baseline="middle" font-family="..." font-size="...">Engine</text>
+...
+</svg>
+----
+
+Note the script's last expression (`svg`) is also its return value, so
+`--output json`'s `returnType` field reports `kotlin.String` here -- unlike
+the `hello-world.ktriz.kts` example above, whose last statement is a `val`
+declaration and whose `returnType` is therefore `null`. `returnValue` itself
+is never serialized into the JSON output (only `status`/`returnType`/`stdout`
+are, see the table below) -- the full SVG document is available in the
+`"stdout"` field, exactly as with the text-mode run above.
+
+The `STRUCTURAL_INTEGRITY` case from link:../README.adoc#the-compiler-as-oracle[in the README] is the
+concrete generate-compile-repair signal: a `worsening = ... STRUCTURAL_INTEGRITY`
+that does not exist among the 39 parameters fails to compile, and `ktriz run`
+reports it structured rather than as a raw stack trace:
+
+[source,shell]
+----
+$ ktriz run bogus-parameter.ktriz.kts
+Script failed to compile:
+  [ERROR] (line 10, column 38) Unresolved reference 'STRUCTURAL_INTEGRITY'.
+
+$ ktriz run bogus-parameter.ktriz.kts --output json
+{"status":"error","errorKind":"compilation_error","code":"KTRIZ-S-001","diagnostics":[{"severity":"ERROR","message":"Unresolved reference 'STRUCTURAL_INTEGRITY'.","line":10,"column":38}]}
+----
+
+Both exit `1`. A generate-compile-repair loop consuming the JSON form reads
+`errorKind`/`code` to branch on the failure kind and `diagnostics[].message`
+to feed back to the model, without parsing free-text output.
+
+A second, complementary TDG layer sits at runtime rather than compile time: a
+parameter *can* contradict itself syntactically (`worsening` given the same
+enum member as `improving`), so `Contradiction`'s `init` block enforces that
+invariant with `require`, and `ktriz run` reports the resulting
+`IllegalArgumentException` the same structured way:
+
+[source,shell]
+----
+$ ktriz run self-contradiction.ktriz.kts
+Script threw at runtime (java.lang.IllegalArgumentException): A contradiction needs two *different* parameters, but both were 'Strength'. A parameter cannot contradict itself.
+----
+
+WARNING: A `.ktriz.kts` script is arbitrary Kotlin and runs with **no
+sandbox** -- the full rights of the invoking user, the same trust level as
+`kotlinc -script` or a `build.gradle.kts` you run locally. `ktriz run` never
+resolves a script over the network (a path that looks like a URI, e.g.
+`https://...` or `file://...`, is rejected outright, see `SOURCE_REMOTE_URI`
+below) and rejects a script file over 1 MiB (`SOURCE_TOO_LARGE`) as a
+denial-of-service leitplanke -- neither of those is a sandbox, and a script
+within those limits may do anything a trusted local process can do. Only run
+scripts you trust.
+
+[cols="1,3"]
+|===
+| `KtrizScriptOutcome` case | Meaning
+
+| `Success`
+| Compiled and ran without throwing. `returnValue`/`returnTypeName` are `null` when the script's last expression was `Unit` (the normal shape for a `println`-based script) -- that is *not* a failure.
+
+| `CompilationError` (`KTRIZ-S-001`)
+| Syntax, type, or unresolved-reference error. `diagnostics` holds at least one `"ERROR"`-severity entry with the message/line/column.
+
+| `RuntimeError` (`KTRIZ-S-002`)
+| The script threw at runtime. Carries only the exception class and message, never a stack trace.
+
+| `NotEvaluated` (`KTRIZ-S-003`)
+| The scripting host returned no result at all.
+
+| `SourceRejected` (`KTRIZ-S-010`..`KTRIZ-S-015`)
+| The `.ktriz.kts` file was rejected before anything compiled or ran: a blank path, a URI-shaped path, a missing file, a non-regular file, an unreadable file, or a file over the 1 MiB limit.
+|===

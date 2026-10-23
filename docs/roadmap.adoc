@@ -1,0 +1,42 @@
+= Roadmap
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation.
+
+[#roadmap]
+== Roadmap
+
+* Full 39x39 contradiction matrix -- *done* as its own reconciled compilation from four independent transcriptions (two MIT-licensed, two with no licence file), see link:contradiction-matrix.adoc#matrix[Contradiction matrix data] and link:matrix-provenance.adoc[docs/matrix-provenance.adoc]; the licence/sui-generis-database-right question on the compilation stays open, see kTRIZ-ADR-0003. The pluggable matrix-source seam is *done*: `ContradictionMatrixData.parse(...)` stays the public parser, `ContradictionMatrixSource.fromFile(path)` is the hardened file-based frontend, and the system property `ktriz.matrix.file` swaps `ContradictionMatrix`'s own data source process-wide with no code change. Explicitly *not* included: Matrix 2003/2010/2022 (48-parameter) support -- such a file is still structurally rejected, because `EngineeringParameter` has 39 members and cells beyond that would be unaddressable through the typed lookup API (see kTRIZ-ADR-0003).
+* kUML-based SVG rendering for `functionModel { }` -- *done*, see link:function-models.adoc#function-model-svg[Rendering a function model]. Implemented as Weg B from kTRIZ-ADR-0002 (consume kUML as a library dependency, in-process call; kTRIZ never becomes a kUML dependency, and kTRIZ never modifies kUML core), but narrower than originally sketched: kUML is consumed only as a *layout* library (`kuml-layout-api`/`kuml-layout-elk`), not as a diagram renderer, because kUML's SVG renderer (`kuml-io-svg`) has no generic node/edge diagram entry point and no wavy/doubled-line concept a `FunctionQuality` could map onto. `ktriz-render-kuml` writes its own small SVG emitter on top of kUML's computed node bounds and edge routes.
+* MCP server -- *done*, see link:mcp-server.adoc#mcp[MCP server]. `ktriz-mcp` exposes `list_engineering_parameters`, `list_inventive_principles`, `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, `lookup_standard_solution`, `build_physical_contradiction`, and `list_separation_principles` over stdio, and is wired into `ktriz-cli` as `ktriz mcp` (mirroring kSTEP's `kstep mcp`).
+* Physical contradictions + separation principles -- *done*, see link:physical-contradictions.adoc#physical-contradiction[Physical contradictions]. No inventive-principle mapping is bundled (evidence: one source only). Explicitly not included: ARIZ (sources disagree on the step level and the licence is unclear, see link:ariz-provenance.adoc[docs/ariz-provenance.adoc]), a bridge from `SuField` to `StandardSolution`, rendering.
+* `*.ktriz.kts` Kotlin scripting host -- *done*, see link:scripting.adoc#scripting[Running a script]. `ktriz-script`'s `KtrizScriptHost` compiles and runs a script with `dev.ktriz.core.*`/`dev.ktriz.function.*`/`dev.ktriz.sufield.*`/`dev.ktriz.physical.*`/`dev.ktriz.render.kuml.*` in scope, mapping every outcome into a structured `KtrizScriptOutcome`; exposed as `ktriz run` on the CLI, with a `--output json` mode for machine consumers.
+* Real CLI commands -- `ktriz run` and `ktriz mcp` are both *done* (see link:scripting.adoc#scripting[Running a script] and link:mcp-server.adoc#mcp[MCP server]). Calling `FunctionModel.renderSvg()` from inside a `.ktriz.kts` script is also *done* -- `ktriz-script` now depends on `ktriz-render-kuml` (`api`, so the classpath propagates through `ktriz-cli`'s runtime image) and `dev.ktriz.render.kuml.*` is a default import; see link:scripting.adoc#scripting[Running a script]'s "Rendering an SVG from a script" example.
+* `FunctionModel.renderSvg()` visual polish -- *done*: node boxes now size from real font-metrics measurement (`java.awt.Font`/`FontRenderContext`, headless-safe) instead of a fixed 140x60 px box, padded, rounded to an 8px grid, and clamped between 96px and 320px width (overflowing names truncate with an `<title>` tooltip carrying the full name); every directed edge gets a triangular arrowhead at its target, oriented from the edge's own route geometry rather than the drawn stroke (so a wavy `HARMFUL` line's arrowhead still points along the straight route axis, and this holds for all four stroke styles -- solid, dashed, doubled, wavy); two or more edges between the same component pair (regardless of direction or quality) bow apart via a sine-shaped perpendicular offset -- `BOW_SPACING_PX = 9` px between adjacent edges' offsets within an adaptive `BOW_ENVELOPE_PX = 90` px envelope that narrows the spacing (down to a `BOW_MIN_SPACING_PX = 3` px floor) as the group grows, instead of a hard clamp, so they stay individually visible, collapsing back to the original straight line when there is only one edge; and self-loops draw a dedicated fixed-radius arc anchored on the node's right edge (`SELF_LOOP_BASE_RADIUS_PX = 20` px, growing with node height, stacking outward per additional self-loop on the same node within an adaptive `SELF_LOOP_ENVELOPE_PX = 120` px envelope, down to a `SELF_LOOP_MIN_STACK_STEP_PX = 3` px floor, instead of a hard clamp) instead of relying on ELK's `elk.layered` self-loop routing. The SVG canvas is widened -- and, if any point falls left of or above ELK's own layout bounds, translated -- to fit every rendered point *and* every edge verb label on all four sides, not just to the right of a self-loop (a label is drawn independently of any rendered path/polygon point, so canvas sizing has to account for its measured text width separately -- caught by manual visual inspection, not by coordinate-only tests, when a self-loop's label clipped past the canvas edge). Verb labels of edges sharing a component pair are placed by a greedy 2D collision-avoidance search (up to 12 candidate positions per edge, alternating above/below the route's midpoint, each level stepping out by the label's own measured height so consecutive levels never overlap) rather than a blind fixed-step stagger: each label is placed at the position with the least overlap area against every label and node box already placed, and a verb that still cannot avoid overlap is truncated with an ellipsis (carrying the full verb in a `<title>` tooltip) and re-searched, keeping whichever of the full or truncated text overlaps least.
+* Substance-field models (Su-Field) -- *done* (core model + DSL), see
+  link:substance-field-models.adoc#su-field[Substance-field models]. Standard solution classes -- *done* (5-class structure), see
+  link:standard-solutions-provenance.adoc[docs/standard-solutions-provenance.adoc].
+  The 76 individual standard solutions are *done* as `StandardSolution`
+  (classical code + owning `StandardSolutionClass` + a short English-only
+  statement per solution, English-only because no verified German-language
+  transcription of the 76-item list exists), sourced from a 5-part TRIZ
+  Journal article series (Terninko, Domb &
+  Miller, 2000) -- see the provenance doc's caveats section: this is a single
+  authorial-voice source, not a majority-reconciled compilation like the
+  contradiction matrix, and its authors describe the list as their own
+  "interpretation" rather than a verbatim Altshuller translation. As with
+  `StandardSolutionClass`, kTRIZ deliberately provides no
+  `suggestStandardSolution(suField)`-style bridge from a `SuField`/
+  `SuFieldQuality` to a specific standard solution -- see the provenance doc's
+  "No SuField/SuFieldQuality-to-StandardSolution bridge function" section.
+  SVG rendering of the S1-S2-Field triangle -- *done*, see link:substance-field-models.adoc#su-field-svg[Rendering a substance-field model]:
+  fixed, deterministic geometry (no kUML layout engine involved -- the
+  classical triangle has nothing to lay out), reusing `FunctionQuality`'s
+  stroke vocabulary for `SuFieldQuality` per MATRIZ's own "similar symbols"
+  statement. An MCP tool for Su-Field -- *done*, see link:mcp-server.adoc#mcp[MCP server]: `build_su_field`
+  (construction + validation), `render_su_field_svg` and
+  `render_function_model_svg` (SVG rendering, with limits, deadline and
+  concurrency cap), plus the `list_field_types`/`list_standard_solution_classes`
+  catalogue tools and `lookup_standard_solution` over the 76 individual
+  solutions -- *done*. There is still deliberately no bridge from a `SuField`
+  to a `StandardSolution`.
