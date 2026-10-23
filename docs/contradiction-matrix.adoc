@@ -1,4 +1,4 @@
-= Contradiction matrix data
+= kTRIZ guide: Contradiction matrix data
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.

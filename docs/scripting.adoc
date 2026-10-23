@@ -1,4 +1,4 @@
-= Scripting: running a .ktriz.kts script
+= kTRIZ guide: scripting
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.

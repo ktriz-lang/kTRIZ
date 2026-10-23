@@ -1,4 +1,4 @@
-= Function models
+= kTRIZ guide: Function models
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.

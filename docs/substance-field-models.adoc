@@ -1,4 +1,4 @@
-= Substance-field models
+= kTRIZ guide: Substance-field models
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.

@@ -6,6 +6,12 @@ without a deprecation period.
 
 == Unreleased
 
+=== Documentation
+
+* Guide titles under `docs/` now read `kTRIZ guide: ...` (no more duplicated
+  title and first heading); the MCP guide points to the build step instead of
+  an install step that did not exist.
+
 == v0.3.1 -- 2026-10-23
 
 === MCP server

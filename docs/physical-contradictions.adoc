@@ -1,4 +1,4 @@
-= Physical contradictions
+= kTRIZ guide: Physical contradictions
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.

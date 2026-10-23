@@ -1,4 +1,4 @@
-= MCP server
+= kTRIZ guide: MCP server
 :toc:
 
 Part of the link:../README.adoc[kTRIZ] documentation.
@@ -31,7 +31,8 @@ own console output shares stdout with the JSON-RPC stream the server speaks,
 so a client reading that stream sees corrupted output. Always launch the
 `installDist` binary directly.
 
-Alternatively, once `ktriz-cli` is installed (see link:../README.adoc#hello-world[Hello World]), the same
+Alternatively, once `ktriz-cli` is built (`./gradlew clean :ktriz-cli:installDist`, see
+link:scripting.adoc#scripting[Running a script]), the same
 server is reachable as a subcommand of the main `ktriz` binary:
 
 [source,shell]
