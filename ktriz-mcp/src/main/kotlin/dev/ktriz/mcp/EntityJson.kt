@@ -2,6 +2,7 @@ package dev.ktriz.mcp
 
 import dev.ktriz.core.EngineeringParameter
 import dev.ktriz.core.InventivePrinciple
+import dev.ktriz.evolution.EvolutionLaw
 import dev.ktriz.physical.SeparationPrinciple
 import dev.ktriz.sufield.FieldType
 import dev.ktriz.sufield.StandardSolution
@@ -73,4 +74,14 @@ fun SeparationPrinciple.toJson(): JsonObject =
         put("symbol", name)
         put("labelEn", labelEn)
         put("labelDe", labelDe)
+    }
+
+/** `{id, symbol, labelEn, group, description}` for one of the eight classical [EvolutionLaw]s. */
+fun EvolutionLaw.toJson(): JsonObject =
+    buildJsonObject {
+        put("id", id)
+        put("symbol", name)
+        put("labelEn", labelEn)
+        put("group", group.name)
+        put("description", description)
     }

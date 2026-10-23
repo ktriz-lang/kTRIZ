@@ -43,7 +43,7 @@ private fun CallToolResult.errorKind(): String? = structuredContent?.get("errorK
 @OptIn(ExperimentalMcpApi::class)
 class KtrizMcpServerTest :
     StringSpec({
-        "tools/list lists exactly the twelve registered tools, each with a description and an object schema" {
+        "tools/list lists exactly the thirteen registered tools, each with a description and an object schema" {
             val client = connectedClient(buildServer())
             val tools = client.listTools().tools
 
@@ -61,7 +61,9 @@ class KtrizMcpServerTest :
                     "lookup_standard_solution",
                     "build_physical_contradiction",
                     "list_separation_principles",
+                    "list_evolution_laws",
                 )
+            tools.size shouldBe 13
             tools.forEach { tool ->
                 tool.description.isNullOrBlank() shouldBe false
                 tool.inputSchema.type shouldBe "object"

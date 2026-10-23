@@ -105,6 +105,10 @@ A generic `mcpServers` entry, pointing at the `installDist` binary:
 | Lists the 4 classical separation principles with `id`, `symbol`, `labelEn`, `labelDe`. Reports `inventivePrincipleMapping: "none"`.
 | --
 
+| `list_evolution_laws`
+| Lists the 8 classical laws of technical systems evolution with `id`, `symbol`, `labelEn`, `group` (statics, kinematics or dynamics) and `description`. Reports `scope: "classical_laws_only"`; no evolution lines, patterns or TESE trends.
+| --
+
 | `render_su_field_svg`
 | Same arguments and validation as `build_su_field`; returns the triangle as a standalone SVG (text content plus `structuredContent.svg`, `format: "svg"`).
 | As `build_su_field`, plus `render_timeout`, `render_busy`, `render_output_too_large`.

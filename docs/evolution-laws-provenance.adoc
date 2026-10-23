@@ -1,0 +1,65 @@
+= Laws of technical systems evolution data provenance
+
+Provenance record for `EvolutionLaw` (eight classical laws) and
+`EvolutionLawGroup` (statics, kinematics, dynamics). See `NOTICE` for the short
+attribution summary.
+
+Retrieved and evaluated: 2026-10-23.
+
+== What is (and is not) bundled
+
+kTRIZ bundles the eight classical laws: id, English label, group and a short
+English description written independently for kTRIZ.
+
+kTRIZ does NOT bundle evolution lines, patterns or TESE trends, worked
+examples, full texts, German labels, or a DSL for applying the laws.
+
+== Sources
+
+* https://en.wikipedia.org/wiki/Laws_of_technical_systems_evolution[Wikipedia,
+  "Laws of technical systems evolution"]. The page footer states a "Creative
+  Commons Attribution-ShareAlike 4.0" licence. Used as a structural witness
+  only; no text was taken (ShareAlike is not compatible with the Apache-2.0
+  licence of kTRIZ).
+* https://matriz.org/[matriz.org], blog "TESE by MATRIZ". The site footer reads
+  "Copyright (c) 2026 by Matriz.org". Cited only as a structural witness; no
+  text was taken.
+
+== Structure comparison
+
+[cols="1,3"]
+|===
+| Group | Laws
+
+| Statics | Completeness of parts; energy conductivity; harmonization of rhythms
+| Kinematics | Increasing ideality; uneven development of parts; transition to the supersystem
+| Dynamics | Transition from macro to micro level; increasing substance-field involvement
+|===
+
+Both sources agree on this grouping. Naming differences (rhythm/rhythms,
+super-system/supersystem) are translation variants. The group names and law
+names are facts about the structure of the field; the descriptions in kTRIZ are
+formulated from the meaning of each law, not paraphrased from either source.
+
+== Divergence
+
+MATRIZ lists a ninth law, "increase of dynamics". Only one source does, so it
+is not an enum value and no majority decision is made. It is recorded here only.
+
+== Rejected candidates
+
+* The 11 patterns (Wikipedia) and the 11 master trends (MATRIZ): count and
+  naming have no majority across sources, so bundling them would be invented
+  precision.
+* Material by Souchkov / CTQ Media: copyright.
+* MATRIZ wiki sub-pages: contradictory licence statements (as with ARIZ, see
+  link:ariz-provenance.adoc[docs/ariz-provenance.adoc]).
+* German labels: no verified source.
+* Wikipedia description texts: ShareAlike.
+
+== Limits of this check
+
+Not checked: altshuller.ru, the Petrov PDF, Altshuller's original books. The
+result is a structural attestation from two secondary sources, not a primary
+source verification. The licence wording above was read from the live pages on
+the retrieval date.

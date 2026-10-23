@@ -74,6 +74,15 @@ translation -- see docs/standard-solutions-provenance.adoc for the full
 sourcing record, the sources evaluated and rejected for this item-level
 list, and a documented numbering anomaly at classical code `5.1.1`.
 
+The eight classical laws of technical systems evolution and their grouping into
+statics (3), kinematics (3) and dynamics (2) are attested as a structure in two
+independent sources: Wikipedia, "Laws of technical systems evolution"
+(CC BY-SA 4.0), and the MATRIZ blog (Copyright Matriz.org). kTRIZ takes only
+the structure and the names from them, no text. The short descriptions are
+written independently for kTRIZ. See docs/evolution-laws-provenance.adoc.
+kTRIZ does not bundle evolution lines or TESE trends, and no material by
+Souchkov or CTQ Media.
+
 Note that "public domain by goodwill" is a community consensus, not a formal
 licence grant (there is no CC0 dedication). A concrete digitised
 transcription of the matrix may separately attract an EU sui generis

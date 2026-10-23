@@ -6,6 +6,18 @@ without a deprecation period.
 
 == Unreleased
 
+=== Evolution laws
+
+* New `EvolutionLaw` enum (eight classical laws of technical systems evolution,
+  ids 1..8, English label, own short description) and `EvolutionLawGroup`
+  (statics, kinematics, dynamics; grouped 3 + 3 + 2) in `ktriz-core`.
+* New MCP tool `list_evolution_laws` (the thirteenth tool); `dev.ktriz.evolution.*`
+  is a default script import.
+* Provenance record `docs/evolution-laws-provenance.adoc` and a `NOTICE` entry.
+* Deliberately no `labelDe`, no ninth law (single source), no evolution lines,
+  patterns or TESE trends, and no application DSL.
+* Tests: 453 (was 445).
+
 === Rendering
 
 * `FunctionModel.renderSvg()` routes dense edge bundles (two or more edges

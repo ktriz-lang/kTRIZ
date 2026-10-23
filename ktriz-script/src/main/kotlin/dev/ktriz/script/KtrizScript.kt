@@ -15,7 +15,8 @@ import kotlin.script.experimental.jvm.jvm
  * `dev.ktriz.function.*` (`functionModel { }`, `FunctionModel`, `Component`, `FunctionEdge`,
  * `FunctionQuality`), `dev.ktriz.sufield.*` (`suField { }`, `SuField`, `FieldType`,
  * `SuFieldQuality`, `StandardSolutionClass`), `dev.ktriz.physical.*`
- * (`physicalContradiction { }`, `PhysicalContradiction`, `SeparationPrinciple`), and
+ * (`physicalContradiction { }`, `PhysicalContradiction`, `SeparationPrinciple`),
+ * `dev.ktriz.evolution.*` (`EvolutionLaw`, `EvolutionLawGroup`), and
  * `dev.ktriz.render.kuml.*`
  * (`FunctionModel.renderSvg()`, `SuField.renderSvg()`) available without explicit imports.
  *
@@ -80,6 +81,8 @@ object KtrizScriptCompilationConfiguration : ScriptCompilationConfiguration({
         // SeparationPrinciple -- collision-free against the packages above (state/property/
         // element exist only as builder members, not top-level symbols).
         "dev.ktriz.physical.*",
+        // EvolutionLaw, EvolutionLawGroup -- plain enums, no top-level symbols that could collide.
+        "dev.ktriz.evolution.*",
         // FunctionModel.renderSvg() / SuField.renderSvg() -- extension functions, so they need
         // this import to resolve inside a script even though ktriz-render-kuml is already on
         // the classpath (see this object's KDoc above).

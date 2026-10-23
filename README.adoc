@@ -11,7 +11,7 @@ contradiction spine with the full classical 39x39 matrix, function models and
 substance-field (Su-Field) models with SVG rendering, the 76 standard
 solutions, physical contradictions with the four classical separation
 principles, the `*.ktriz.kts` scripting host (`ktriz run`), and an MCP server
-with twelve tools (`ktriz mcp`). Scripts run without a sandbox -- do not run
+with thirteen tools (`ktriz mcp`). Scripts run without a sandbox -- do not run
 untrusted code. Whether EU database rights attach to the bundled matrix
 compilation is not conclusively settled (see link:docs/contradiction-matrix.adoc#matrix[Contradiction matrix data]). Deliberately not
 built: ARIZ (see link:docs/ariz-provenance.adoc[docs/ariz-provenance.adoc]) and
@@ -39,7 +39,7 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today (v0.3.1, pre-release, source only; 445 Kotest test cases):
+What works today (v0.3.1, pre-release, source only; 453 Kotest test cases):
 
 * The contradiction spine: all 39 engineering parameters and 40 inventive
   principles as Kotlin enums with English and German labels, `Contradiction`
@@ -50,7 +50,9 @@ What works today (v0.3.1, pre-release, source only; 445 Kotest test cases):
   solutions.
 * Physical contradictions (`physicalContradiction { }`) with the four
   classical separation principles.
-* A `*.ktriz.kts` scripting host (`ktriz run`) and an MCP server with twelve
+* Laws of technical systems evolution (`EvolutionLaw`, eight classical laws in
+  three groups).
+* A `*.ktriz.kts` scripting host (`ktriz run`) and an MCP server with thirteen
   tools (`ktriz mcp`) for LLM agents.
 
 [#documentation]
@@ -76,7 +78,7 @@ What works today (v0.3.1, pre-release, source only; 445 Kotest test cases):
 | Running `.ktriz.kts` scripts with `ktriz run`, JSON output, rendering an SVG from a script.
 
 | link:docs/mcp-server.adoc[MCP server]
-| `ktriz mcp`, client configuration, the twelve tools, render limits, an example call.
+| `ktriz mcp`, client configuration, the thirteen tools, render limits, an example call.
 
 | link:docs/roadmap.adoc[Roadmap]
 | What is done, what is deliberately not built.
@@ -147,7 +149,7 @@ loop actually consumes, not just the raw compiler text.
 | Module | Purpose
 
 | `ktriz-core`
-| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`, `physicalContradiction`, `SeparationPrinciple`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
+| The DSL itself: `EngineeringParameter`, `InventivePrinciple`, `Contradiction`, `ContradictionMatrix`, `ContradictionMatrixSource`, `functionModel`, `suField`, `physicalContradiction`, `SeparationPrinciple`, `EvolutionLaw`, `EvolutionLawGroup`. Bundles the classical 39x39 contradiction matrix as a classpath resource (`contradiction-matrix-1971.csv`). No dependencies beyond the Kotlin standard library and the `kotlin-logging` facade (no logging backend -- the runnable modules bring their own).
 
 | `ktriz-script`
 | The `*.ktriz.kts` scripting host: `KtrizScript`/`KtrizScriptCompilationConfiguration`, `KtrizScriptHost.eval`/`evalSource`, `KtrizScriptOutcome`. `api ktriz-core` (not `implementation`) so `ktriz-core` types resolve inside a script's `wholeClasspath = true` compilation. Deliberately unsandboxed -- see link:docs/scripting.adoc#scripting[Running a script].

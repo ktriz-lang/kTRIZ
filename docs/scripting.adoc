@@ -7,7 +7,7 @@ Part of the link:../README.adoc[kTRIZ] documentation.
 == Running a `.ktriz.kts` script
 
 The module `ktriz-script` compiles and runs `*.ktriz.kts` files. `dev.ktriz.core.*`,
-`dev.ktriz.function.*`, `dev.ktriz.sufield.*`, `dev.ktriz.physical.*` and
+`dev.ktriz.function.*`, `dev.ktriz.sufield.*`, `dev.ktriz.physical.*`, `dev.ktriz.evolution.*` and
 `dev.ktriz.render.kuml.*` are in scope by default -- no import needed, though
 writing one explicitly (as below) is harmless.
 
