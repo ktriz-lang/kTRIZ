@@ -25,6 +25,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldEndWith
+import io.kotest.matchers.string.shouldMatch
 import io.kotest.matchers.string.shouldNotContain
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
@@ -602,6 +603,287 @@ class KtrizMcpToolHandlersTest :
             val componentNames =
                 result.structured()["components"]!!.jsonArray.map { it.jsonObject["name"]!!.jsonPrimitive.content }
             componentNames shouldContainExactly listOf("Bearing")
+        }
+
+        // -- build_function_model: hardening (self-loop, quality casing, duplicates, identifiers) --
+
+        "build_function_model keeps a self-loop as one edge and emits from == to in the snippet" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put("edges", buildJsonArray { add(edgeJson("Bearing", "Bearing", "harmful", "overheats")) })
+                    },
+                )
+            result.isError.shouldBeNull()
+            val edges = result.structured()["edges"]!!.jsonArray
+            edges shouldHaveSize 1
+            edges[0].jsonObject["from"]!!.jsonPrimitive.content shouldBe "Bearing"
+            edges[0].jsonObject["to"]!!.jsonPrimitive.content shouldBe "Bearing"
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "harmful(from = bearing, to = bearing, verb = \"overheats\")"
+        }
+
+        "build_function_model accepts a mixed-case quality and normalizes it to upper case" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put("edges", buildJsonArray { add(edgeJson("A", "B", "hArMfUl", "burns")) })
+                    },
+                )
+            result.isError.shouldBeNull()
+            result
+                .structured()["edges"]!!
+                .jsonArray[0]
+                .jsonObject["quality"]!!
+                .jsonPrimitive.content shouldBe "HARMFUL"
+        }
+
+        "build_function_model keeps two identical edges, because the DSL core does not deduplicate edges" {
+            val edge = edgeJson("A", "B", "useful", "drives")
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "edges",
+                            buildJsonArray {
+                                add(edge)
+                                add(edge)
+                            },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            result.structured()["edges"]!!.jsonArray shouldHaveSize 2
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin.lines().count { it.contains("useful(from = a, to = b, verb = \"drives\")") } shouldBe 2
+        }
+
+        "build_function_model gives names that differ only by punctuation unique identifiers" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "components",
+                            buildJsonArray {
+                                add("Cylinder block")
+                                add("Cylinder-block")
+                                add("cylinder_block")
+                            },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "val cylinderBlock = component(\"Cylinder block\")"
+            kotlin shouldContain "val cylinderBlock2 = component(\"Cylinder-block\")"
+            kotlin shouldContain "val cylinderBlock3 = component(\"cylinder_block\")"
+        }
+
+        "build_function_model falls back to component, component2 and c1abc for letterless or digit-leading names" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "components",
+                            buildJsonArray {
+                                add("!!!")
+                                add("???")
+                                add("1abc")
+                            },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "val component = component(\"!!!\")"
+            kotlin shouldContain "val component2 = component(\"???\")"
+            kotlin shouldContain "val c1abc = component(\"1abc\")"
+        }
+
+        "build_function_model emits only ASCII identifiers for non-ASCII names" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "components",
+                            buildJsonArray {
+                                add("Größe")
+                                add("水")
+                            },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            val identifiers = Regex("""val (\S+) = component""").findAll(kotlin).map { it.groupValues[1] }.toList()
+            identifiers shouldHaveSize 2
+            identifiers.toSet() shouldHaveSize 2
+            identifiers.forAll { it shouldMatch Regex("[A-Za-z_][A-Za-z0-9_]*") }
+        }
+
+        "build_function_model suffixes further hard keywords with an underscore but leaves soft keywords alone" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "components",
+                            buildJsonArray {
+                                add("when")
+                                add("In")
+                                add("fun")
+                                add("class")
+                                add("data")
+                            },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "val when_ = component(\"when\")"
+            kotlin shouldContain "val in_ = component(\"In\")"
+            kotlin shouldContain "val fun_ = component(\"fun\")"
+            kotlin shouldContain "val class_ = component(\"class\")"
+            kotlin shouldContain "val data = component(\"data\")"
+        }
+
+        "build_function_model escapes quote, backslash, tab and carriage return in names and verbs" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "edges",
+                            buildJsonArray { add(edgeJson("A\"q\\b", "T\tab", "useful", "line\rbreak \"x\"")) },
+                        )
+                    },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin shouldContain "component(\"A\\\"q\\\\b\")"
+            kotlin shouldContain "component(\"T\\tab\")"
+            kotlin shouldContain "verb = \"line\\rbreak \\\"x\\\"\""
+            kotlin shouldNotContain "\t"
+            kotlin shouldNotContain "\r"
+            // 2 components + 1 edge + header + closing brace -- no raw line break leaked in.
+            kotlin.lines() shouldHaveSize 5
+        }
+
+        "build_function_model cannot be code-injected through a component name" {
+            val hostile = "x\"); Runtime.getRuntime().exec(\"id\"); component(\""
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject { put("components", buildJsonArray { add(hostile) }) },
+                )
+            result.isError.shouldBeNull()
+            val kotlin = result.structured()["kotlin"]!!.jsonPrimitive.content
+            kotlin.lines() shouldHaveSize 3
+            kotlin shouldContain "component(\"x\\\"); Runtime.getRuntime().exec(\\\"id\\\"); component(\\\"\")"
+        }
+
+        "build_function_model accepts exactly MAX_COMPONENTS components and MAX_EDGES edges" {
+            val components = buildJsonArray { repeat(200) { add("C$it") } }
+            val edges = buildJsonArray { repeat(500) { add(edgeJson("A", "B", "useful", "drives")) } }
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put("components", components)
+                        put("edges", edges)
+                    },
+                )
+            result.isError.shouldBeNull()
+            result.structured()["edges"]!!.jsonArray shouldHaveSize 500
+            result.structured()["components"]!!.jsonArray shouldHaveSize 202
+        }
+
+        "build_function_model accepts a name of exactly MAX_NAME_LENGTH characters" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject { put("components", buildJsonArray { add("x".repeat(MAX_NAME_LENGTH)) }) },
+                )
+            result.isError.shouldBeNull()
+        }
+
+        "build_function_model error text carries no stack trace and truncates a long invalid quality" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put(
+                            "edges",
+                            buildJsonArray { add(edgeJson("A", "B", "Q".repeat(MAX_NAME_LENGTH - 1) + "\n", "v")) },
+                        )
+                    },
+                )
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+            val text = (result.content.first() as TextContent).text
+            text shouldNotContain "at dev.ktriz"
+            text shouldNotContain "Exception"
+            text shouldNotContain "Q".repeat(100)
+            text shouldContain "..."
+        }
+
+        "build_function_model rejects an edge missing each required field" {
+            listOf("from", "to", "verb", "quality").forAll { missing ->
+                val edge =
+                    buildJsonObject {
+                        for (f in listOf("from", "to", "verb", "quality")) {
+                            if (f != missing) put(f, if (f == "quality") "useful" else "x")
+                        }
+                    }
+                val result =
+                    buildFunctionModelHandler(buildJsonObject { put("edges", buildJsonArray { add(edge) }) })
+                result.isError shouldBe true
+                result.errorKind() shouldBe "malformed_input"
+            }
+        }
+
+        "build_function_model treats JSON null for components and edges as an empty model" {
+            val result =
+                buildFunctionModelHandler(
+                    buildJsonObject {
+                        put("components", JsonNull)
+                        put("edges", JsonNull)
+                    },
+                )
+            result.isError.shouldBeNull()
+            result.structured()["components"]!!.jsonArray.shouldBeEmpty()
+            result.structured()["edges"]!!.jsonArray.shouldBeEmpty()
+        }
+
+        "build_function_model rejects a non-string primitive for from" {
+            val edge =
+                buildJsonObject {
+                    put("from", 123)
+                    put("to", "B")
+                    put("quality", "useful")
+                    put("verb", "drives")
+                }
+            val result = buildFunctionModelHandler(buildJsonObject { put("edges", buildJsonArray { add(edge) }) })
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+        }
+
+        "build_function_model rejects a non-string entry in components" {
+            val result =
+                buildFunctionModelHandler(buildJsonObject { put("components", buildJsonArray { add(42) }) })
+            result.isError shouldBe true
+            result.errorKind() shouldBe "malformed_input"
+        }
+
+        "build_function_model handler writes nothing to stdout, which is the JSON-RPC channel" {
+            val original = System.out
+            val captured = java.io.ByteArrayOutputStream()
+            System.setOut(java.io.PrintStream(captured, true, Charsets.UTF_8))
+            try {
+                buildFunctionModelHandler(
+                    buildJsonObject { put("edges", buildJsonArray { add(edgeJson("A", "B", "useful", "drives")) }) },
+                )
+                buildFunctionModelHandler(
+                    buildJsonObject { put("edges", buildJsonArray { add(edgeJson("A", "B", "bogus", "drives")) }) },
+                )
+            } finally {
+                System.setOut(original)
+            }
+            captured.toString(Charsets.UTF_8) shouldBe ""
         }
 
         // -- build_su_field: happy path ------------------------------------------------------
