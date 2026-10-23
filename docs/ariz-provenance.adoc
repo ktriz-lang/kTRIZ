@@ -1,0 +1,34 @@
+= ARIZ: why it is not modelled (yet)
+:toc:
+
+kTRIZ deliberately does not model ARIZ (the Algorithm of Inventive Problem
+Solving). This page records the source check behind that decision (2026-10-23),
+in the style of the other provenance documents.
+
+== Finding
+
+* Only the *part level* of ARIZ-85C (nine parts in three blocks: reformulate
+  the problem, remove the contradiction, analyse the solution) is attested by
+  two sources that agree: the MATRIZ wiki and Marconi's 1998 TRIZ Journal
+  article.
+* On the *step level* the two sources already disagree within parts 1 to 3
+  (part 1: 7 steps vs. 6; part 3: 3 steps vs. 6), and part 2 is titled
+  differently. There is no majority to reconcile against, so a step catalogue
+  would be invented precision.
+* *Licence* of the MATRIZ text is contradictory: "open access ... Creative
+  Commons" (variant not named) next to "All Rights Reserved". That is not
+  clear enough for Apache-2.0 redistribution. The Marconi page carries no
+  licence notice.
+* A nine-value enum of parts would add little and could suggest an authority
+  kTRIZ cannot back.
+
+== Limits of this check
+
+The MATRIZ PDF of ARIZ-85C could not be read, the MATRIZ template page was
+read only up to part 3, and neither the original text (Petrov/Zusman/
+Altshuller/Zlotin) nor altshuller.ru was checked.
+
+== What would change the decision
+
+A written statement from MATRIZ naming the exact Creative Commons variant, or
+a second freely licensed source with a matching step structure.
