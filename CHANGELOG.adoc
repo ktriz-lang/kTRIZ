@@ -6,6 +6,11 @@ without a deprecation period.
 
 == Unreleased
 
+=== MCP server
+
+* The MCP `serverInfo.version` is now read from a build-filtered resource and
+  matches the project version; it was hardcoded to `0.1.0` through v0.3.0.
+
 == v0.3.0 -- 2026-10-23
 
 === Physical contradictions

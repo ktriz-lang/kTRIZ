@@ -1,5 +1,6 @@
 package dev.ktriz.tests
 
+import dev.ktriz.mcp.KTRIZ_MCP_VERSION
 import dev.ktriz.mcp.buildServer
 import dev.ktriz.mcp.runSession
 import io.kotest.core.spec.style.StringSpec
@@ -65,6 +66,14 @@ class KtrizMcpServerTest :
                 tool.description.isNullOrBlank() shouldBe false
                 tool.inputSchema.type shouldBe "object"
             }
+        }
+
+        "serverInfo reports the project version, not a hardcoded literal" {
+            val expected = System.getProperty("ktriz.expected.version")
+            (expected.isNullOrBlank()) shouldBe false
+            KTRIZ_MCP_VERSION shouldBe expected
+            val client = connectedClient(buildServer())
+            client.serverVersion?.version shouldBe expected
         }
 
         "build_physical_contradiction over a real client/server session returns a model and a snippet" {

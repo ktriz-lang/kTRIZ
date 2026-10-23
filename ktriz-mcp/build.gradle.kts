@@ -32,6 +32,18 @@ distributions {
     }
 }
 
+// The MCP serverInfo version is read from a filtered resource, so it can never lag behind the
+// project version (it said 0.1.0 through v0.3.0 when it was hardcoded). Plain string val outside
+// the lambda: no Project capture, safe for the Gradle configuration cache.
+val projectVersion = project.version.toString()
+
+tasks.processResources {
+    inputs.property("projectVersion", projectVersion)
+    filesMatching("ktriz-mcp-version.properties") {
+        filter { it.replace("@projectVersion@", projectVersion) }
+    }
+}
+
 dependencies {
     implementation(project(":ktriz-core"))
     // Rendering fuer render_su_field_svg / render_function_model_svg. Zieht ELK, EMF, Guava und

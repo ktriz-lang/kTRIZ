@@ -85,7 +85,7 @@ What works today:
   physical contradictions (one property in two opposite states) and the four
   classical separation principles. No mapping to the 40 inventive principles is
   bundled, deliberately (see <<physical-contradiction>>).
-* 422 Kotest test cases covering the above.
+* 423 Kotest test cases covering the above.
 
 [#hello-world]
 == Hello World

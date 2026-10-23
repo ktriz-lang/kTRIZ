@@ -27,4 +27,5 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+    systemProperty("ktriz.expected.version", project.version.toString())
 }

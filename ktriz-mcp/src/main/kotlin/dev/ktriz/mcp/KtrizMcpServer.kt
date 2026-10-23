@@ -27,6 +27,24 @@ import kotlinx.io.buffered
 private val logger = ktrizMcpLogger {}
 
 /**
+ * Version reported as the MCP `serverInfo.version`, read from the build-filtered
+ * `ktriz-mcp-version.properties` resource so it always matches the project version. Falls back to
+ * `"unknown"` (never a stale literal) if the resource is missing or unfiltered.
+ */
+val KTRIZ_MCP_VERSION: String by lazy {
+    val stream = KtrizMcpServerResources::class.java.getResourceAsStream("/ktriz-mcp-version.properties")
+    val raw =
+        stream?.use {
+            val props = java.util.Properties()
+            props.load(it)
+            props.getProperty("version")
+        }
+    if (raw.isNullOrBlank() || raw.contains('@')) "unknown" else raw
+}
+
+private object KtrizMcpServerResources
+
+/**
  * Assembles the kTRIZ MCP server: `list_engineering_parameters`, `list_inventive_principles`,
  * `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`,
  * `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`,
@@ -45,7 +63,7 @@ private val logger = ktrizMcpLogger {}
 fun buildServer(): Server {
     val server =
         Server(
-            serverInfo = Implementation(name = "ktriz-mcp", version = "0.1.0"),
+            serverInfo = Implementation(name = "ktriz-mcp", version = KTRIZ_MCP_VERSION),
             options = ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools())),
         )
     registerListEngineeringParametersTool(server)
