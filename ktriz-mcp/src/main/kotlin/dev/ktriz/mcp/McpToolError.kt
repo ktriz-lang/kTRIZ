@@ -1,8 +1,10 @@
 package dev.ktriz.mcp
 
+import dev.ktriz.sufield.StandardSolution
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -225,3 +227,61 @@ private fun ParameterResolution.toErrorJson() =
             }
         is ParameterResolution.Resolved -> error("Resolved is not a problem")
     }
+
+fun renderTimeoutError(
+    toolName: String,
+    timeoutMs: Long,
+): CallToolResult =
+    structuredError(
+        kind = "render_timeout",
+        message = "Tool '$toolName' did not finish rendering within ${timeoutMs}ms; try a smaller model.",
+    )
+
+fun renderBusyError(toolName: String): CallToolResult =
+    structuredError(
+        kind = "render_busy",
+        message = "Tool '$toolName' is busy: the maximum number of concurrent renders is in use; retry shortly.",
+    )
+
+fun renderOutputTooLargeError(
+    toolName: String,
+    limit: Int,
+): CallToolResult =
+    structuredError(
+        kind = "render_output_too_large",
+        message = "Tool '$toolName' produced an SVG larger than $limit characters; try a smaller model.",
+    )
+
+fun unknownStandardSolutionError(rawCode: String): CallToolResult =
+    CallToolResult(
+        content =
+            listOf(
+                TextContent(
+                    text =
+                        "Unknown standard solution code '${echoSafe(rawCode)}'. Call lookup_standard_solution " +
+                            "with standardClass=1..5 to browse.",
+                ),
+            ),
+        isError = true,
+        structuredContent =
+            buildJsonObject {
+                put("errorKind", "unknown_standard_solution")
+                put("value", echoSafe(rawCode))
+                put("validCodes", buildJsonArray { StandardSolution.entries.forEach { add(it.code) } })
+                put("hint", "call lookup_standard_solution with standardClass=1..5 to browse")
+            },
+    )
+
+private fun structuredError(
+    kind: String,
+    message: String,
+): CallToolResult =
+    CallToolResult(
+        content = listOf(TextContent(text = message)),
+        isError = true,
+        structuredContent =
+            buildJsonObject {
+                put("errorKind", kind)
+                put("message", message)
+            },
+    )

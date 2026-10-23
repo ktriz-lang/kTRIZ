@@ -6,6 +6,30 @@ without a deprecation period.
 
 == Unreleased
 
+=== MCP server
+
+* New tool `render_su_field_svg`: renders a validated Su-Field triangle as
+  SVG (same arguments as `build_su_field`).
+* New tool `render_function_model_svg`: renders a function model as SVG
+  (same arguments as `build_function_model`) with tighter limits -- 60
+  components (auto-declared edge endpoints included), 150 edges, 20,000
+  characters of names and verbs in total.
+* New tool `lookup_standard_solution`: the 76 standard solutions by `code`,
+  by `standardClass`, or all at once. The texts are the ones already
+  shipped in `StandardSolution`; no new text, and still no bridge from
+  `SuField` to a solution.
+* Render calls run on daemon worker threads under a 10 s deadline with at
+  most 2 concurrent renders and a 2,000,000-character output cap; new
+  structured errors `render_timeout`, `render_busy`,
+  `render_output_too_large` and `unknown_standard_solution`.
+* `ktriz-mcp` now depends on `ktriz-render-kuml` (ELK, EMF and Guava come in
+  transitively, the distribution grows). The `ktriz-mcp` and `ktriz` start
+  scripts pass `-Djava.awt.headless=true`, and both `main` functions set it
+  first thing.
+* Corrected tool descriptions: `list_standard_solution_classes` no longer
+  claims that the 76 solution texts are not bundled, and `build_su_field`
+  now points to `render_su_field_svg`.
+
 === Renderer fixes
 
 * `FunctionModel.renderSvg()`: edge-verb labels are now placed by a greedy

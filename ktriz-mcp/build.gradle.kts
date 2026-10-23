@@ -13,9 +13,11 @@ kotlin {
 
 application {
     mainClass.set("dev.ktriz.mcp.KtrizMcpServerKt")
-    // Reiner Nachschlage-Workload (Enum-Ausgabe + Map-Lookup): Startup dominiert, Peak-Throughput
-    // ist irrelevant -- gleiche Begruendung wie in ktriz-cli.
-    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
+    // Ueberwiegend Nachschlage-Workload (Enum-Ausgabe + Map-Lookup) plus gelegentliches SVG-Rendering
+    // (ELK-Layout): Startup dominiert, Peak-Throughput ist irrelevant -- gleiche Begruendung wie in
+    // ktriz-cli. Headless, weil die Render-Tools AWT-Fontmetrik benutzen und ein MCP-Server nie ein
+    // Dock-Icon / GUI-Toolkit starten darf.
+    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1", "-Djava.awt.headless=true")
 }
 
 // Gradle 9 Duplikat-Strategie: das MCP-SDK ist Kotlin Multiplatform und kann je nach
@@ -32,6 +34,9 @@ distributions {
 
 dependencies {
     implementation(project(":ktriz-core"))
+    // Rendering fuer render_su_field_svg / render_function_model_svg. Zieht ELK, EMF, Guava und
+    // xtext transitiv mit -- die Distribution von ktriz-mcp wird dadurch deutlich groesser.
+    implementation(project(":ktriz-render-kuml"))
     implementation(libs.mcp.kotlin.sdk.server)
     // Explizit deklariert statt transitiv ueber das MCP-SDK mitgenommen: dieses Modul benutzt
     // JsonObject/buildJsonObject und Job/runBlocking in *eigenem* Quelltext -- eine bewusste,

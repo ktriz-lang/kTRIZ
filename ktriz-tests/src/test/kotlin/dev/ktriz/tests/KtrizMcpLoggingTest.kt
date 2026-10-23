@@ -1,6 +1,8 @@
 package dev.ktriz.tests
 
 import dev.ktriz.mcp.buildServer
+import dev.ktriz.mcp.mcpToolCall
+import dev.ktriz.mcp.renderTimeoutError
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -82,5 +84,57 @@ class KtrizMcpLoggingTest :
             err shouldContain "self_contradiction"
 
             capturedOut.toString(Charsets.UTF_8) shouldBe ""
+        }
+
+        "render and lookup tools keep stdout empty and never log raw caller values" {
+            val originalOut = System.out
+            val originalErr = System.err
+            val capturedOut = ByteArrayOutputStream()
+            val capturedErr = ByteArrayOutputStream()
+            System.setOut(PrintStream(capturedOut, true, Charsets.UTF_8))
+            System.setErr(PrintStream(capturedErr, true, Charsets.UTF_8))
+            try {
+                val client = connectedClient(buildServer())
+                client.callTool(
+                    "render_function_model_svg",
+                    mapOf(
+                        "edges" to
+                            listOf(mapOf("from" to "Motor", "to" to "Shaft", "quality" to "useful", "verb" to "turns")),
+                    ),
+                )
+                client.callTool(
+                    "render_su_field_svg",
+                    mapOf("s1" to "Workpiece", "s2" to "Tool", "fieldType" to "MECHANICAL", "quality" to "COMPLETE"),
+                )
+                client.callTool("lookup_standard_solution", mapOf("code" to "RAW_SECRET_CODE_9.9.9"))
+                client.callTool(
+                    "render_su_field_svg",
+                    mapOf("s1" to "RAW_SECRET_S1", "quality" to "COMPLETE"),
+                )
+            } finally {
+                System.setOut(originalOut)
+                System.setErr(originalErr)
+            }
+
+            val err = capturedErr.toString(Charsets.UTF_8)
+            err shouldContain "unknown_standard_solution"
+            err shouldContain "self_contradiction"
+            err shouldNotContain "RAW_SECRET"
+            capturedOut.toString(Charsets.UTF_8) shouldBe ""
+        }
+
+        "a render_timeout error is logged as WARN, not ERROR" {
+            val originalErr = System.err
+            val capturedErr = ByteArrayOutputStream()
+            System.setErr(PrintStream(capturedErr, true, Charsets.UTF_8))
+            try {
+                mcpToolCall("render_function_model_svg") { renderTimeoutError("render_function_model_svg", 10_000L) }
+            } finally {
+                System.setErr(originalErr)
+            }
+            val err = capturedErr.toString(Charsets.UTF_8)
+            err shouldContain "render_timeout"
+            err shouldContain "WARN"
+            err shouldNotContain "ERROR"
         }
     })

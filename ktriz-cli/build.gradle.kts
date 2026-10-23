@@ -19,7 +19,7 @@ application {
     applicationName = "ktriz"
     // Analog kUML/kSTEP: der spätere `ktriz`-Aufruf ist ein kurzlebiger One-Shot-Prozess,
     // dessen Kosten von Startup/Kompilierung dominiert werden -- Peak-Throughput ist irrelevant.
-    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
+    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1", "-Djava.awt.headless=true")
 }
 
 dependencies {

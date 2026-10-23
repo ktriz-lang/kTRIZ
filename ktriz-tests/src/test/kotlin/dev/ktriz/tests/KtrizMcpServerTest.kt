@@ -42,7 +42,7 @@ private fun CallToolResult.errorKind(): String? = structuredContent?.get("errorK
 @OptIn(ExperimentalMcpApi::class)
 class KtrizMcpServerTest :
     StringSpec({
-        "tools/list lists exactly the seven registered tools, each with a description and an object schema" {
+        "tools/list lists exactly the ten registered tools, each with a description and an object schema" {
             val client = connectedClient(buildServer())
             val tools = client.listTools().tools
 
@@ -55,6 +55,9 @@ class KtrizMcpServerTest :
                     "build_su_field",
                     "list_field_types",
                     "list_standard_solution_classes",
+                    "render_su_field_svg",
+                    "render_function_model_svg",
+                    "lookup_standard_solution",
                 )
             tools.forEach { tool ->
                 tool.description.isNullOrBlank() shouldBe false
@@ -116,6 +119,38 @@ class KtrizMcpServerTest :
                 )
             result.isError shouldBe true
             result.errorKind() shouldBe "self_contradiction"
+        }
+
+        "the three new tools answer over a real client/server session" {
+            val client = connectedClient(buildServer())
+            val su =
+                client.callTool(
+                    "render_su_field_svg",
+                    mapOf("s1" to "Workpiece", "s2" to "Tool", "fieldType" to "MECHANICAL", "quality" to "COMPLETE"),
+                )
+            su.isError shouldBe null
+            su.structuredContent!!["svg"]!!
+                .jsonPrimitive.content
+                .contains("<svg") shouldBe true
+
+            val fm =
+                client.callTool(
+                    "render_function_model_svg",
+                    mapOf(
+                        "edges" to
+                            listOf(
+                                mapOf("from" to "Motor", "to" to "Shaft", "quality" to "useful", "verb" to "turns"),
+                            ),
+                    ),
+                )
+            fm.isError shouldBe null
+            fm.structuredContent!!["componentCount"]!!.jsonPrimitive.int shouldBe 2
+
+            val lookup = client.callTool("lookup_standard_solution", mapOf("code" to "1.1.1"))
+            lookup.isError shouldBe null
+            lookup.structuredContent!!["solution"]!!
+                .jsonObject["code"]!!
+                .jsonPrimitive.content shouldBe "1.1.1"
         }
 
         "calling an unknown tool name does not end the session -- a following valid call still succeeds" {

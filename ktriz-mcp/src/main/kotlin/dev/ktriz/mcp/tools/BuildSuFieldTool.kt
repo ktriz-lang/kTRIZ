@@ -27,7 +27,7 @@ private const val TOOL_NAME = "build_su_field"
 private val VALID_FIELD_TYPES = FieldType.entries.joinToString(", ") { it.name }
 private val VALID_SU_FIELD_QUALITIES = SuFieldQuality.entries.joinToString(", ") { it.name }
 
-private val INPUT_SCHEMA =
+internal val SU_FIELD_INPUT_SCHEMA: ToolSchema =
     ToolSchema(
         properties =
             buildJsonObject {
@@ -98,31 +98,56 @@ private fun suFieldKotlinSnippet(model: SuField): String {
     return lines.joinToString("\n")
 }
 
+/** Outcome of [parseSuFieldArguments]: either a validated model or a ready-made `self_contradiction` error. */
+internal sealed interface SuFieldParse {
+    data class Built(
+        val model: SuField,
+    ) : SuFieldParse
+
+    data class Rejected(
+        val error: CallToolResult,
+    ) : SuFieldParse
+}
+
+/**
+ * Shared input path of `build_su_field` and `render_su_field_svg`.
+ *
+ * @throws ToolInputException for shape / length / enum errors (routed by [mcpToolCall]).
+ */
+internal fun parseSuFieldArguments(arguments: JsonObject?): SuFieldParse {
+    val s1Name = asRequiredNonBlankString(arguments?.get("s1"), "s1")
+    val s2Name = asOptionalNonBlankString(arguments?.get("s2"), "s2")
+    val fieldTypeRaw = asOptionalNonBlankString(arguments?.get("fieldType"), "fieldType")
+    val qualityRaw = asRequiredNonBlankString(arguments?.get("quality"), "quality")
+
+    val fieldType = fieldTypeRaw?.let { resolveFieldType(it) }
+    val quality = resolveSuFieldQuality(qualityRaw)
+
+    // SuField's init block enforces quality/s2/field consistency (see its KDoc) -- that
+    // check is the one authoritative location for this rule, so it's surfaced here as a
+    // structured self_contradiction error rather than duplicated as a second, redundant
+    // check in this module.
+    return try {
+        SuFieldParse.Built(
+            suField {
+                s1(component(s1Name))
+                s2Name?.let { s2(component(it)) }
+                fieldType?.let { field(it) }
+                quality(quality)
+            },
+        )
+    } catch (e: IllegalArgumentException) {
+        SuFieldParse.Rejected(selfContradictionError(e.message))
+    }
+}
+
 /** Pure handler -- directly unit-testable, no server/transport involved. */
 fun buildSuFieldHandler(arguments: JsonObject?): CallToolResult =
     mcpToolCall(TOOL_NAME) {
-        val s1Name = asRequiredNonBlankString(arguments?.get("s1"), "s1")
-        val s2Name = asOptionalNonBlankString(arguments?.get("s2"), "s2")
-        val fieldTypeRaw = asOptionalNonBlankString(arguments?.get("fieldType"), "fieldType")
-        val qualityRaw = asRequiredNonBlankString(arguments?.get("quality"), "quality")
-
-        val fieldType = fieldTypeRaw?.let { resolveFieldType(it) }
-        val quality = resolveSuFieldQuality(qualityRaw)
-
-        // SuField's init block enforces quality/s2/field consistency (see its KDoc) -- that
-        // check is the one authoritative location for this rule, so it's surfaced here as a
-        // structured self_contradiction error rather than duplicated as a second, redundant
-        // check in this module.
         val model =
-            try {
-                suField {
-                    s1(component(s1Name))
-                    s2Name?.let { s2(component(it)) }
-                    fieldType?.let { field(it) }
-                    quality(quality)
-                }
-            } catch (e: IllegalArgumentException) {
-                return@mcpToolCall selfContradictionError(e.message)
+            when (val parsed = parseSuFieldArguments(arguments)) {
+                is SuFieldParse.Built -> parsed.model
+                is SuFieldParse.Rejected -> return@mcpToolCall parsed.error
             }
 
         val summaryText =
@@ -159,10 +184,9 @@ fun registerBuildSuFieldTool(server: Server) {
                 "both to be present -- a mismatch returns a structured self_contradiction error naming which " +
                 "slot is missing or unexpectedly present, not a crash. 'fieldType', if given, must be one of " +
                 "$VALID_FIELD_TYPES (case-insensitive) -- call list_field_types first if unsure. There is " +
-                "deliberately no matching render tool here (consistent with build_function_model, which " +
-                "likewise has no MCP-exposed rendering pendant) -- SVG rendering of a Su-Field triangle is " +
-                "only reachable via ktriz-script/ktriz-cli.",
-        inputSchema = INPUT_SCHEMA,
+                "no rendering here -- this tool validates only. To get the SVG of the same triangle, call " +
+                "render_su_field_svg with the same arguments.",
+        inputSchema = SU_FIELD_INPUT_SCHEMA,
     ) { request ->
         buildSuFieldHandler(request.arguments)
     }

@@ -6,6 +6,9 @@ import dev.ktriz.mcp.tools.registerListEngineeringParametersTool
 import dev.ktriz.mcp.tools.registerListFieldTypesTool
 import dev.ktriz.mcp.tools.registerListInventivePrinciplesTool
 import dev.ktriz.mcp.tools.registerListStandardSolutionClassesTool
+import dev.ktriz.mcp.tools.registerLookupStandardSolutionTool
+import dev.ktriz.mcp.tools.registerRenderFunctionModelSvgTool
+import dev.ktriz.mcp.tools.registerRenderSuFieldSvgTool
 import dev.ktriz.mcp.tools.registerResolveContradictionTool
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -23,8 +26,9 @@ private val logger = ktrizMcpLogger {}
 
 /**
  * Assembles the kTRIZ MCP server: `list_engineering_parameters`, `list_inventive_principles`,
- * `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`, and
- * `list_standard_solution_classes`.
+ * `resolve_contradiction`, `build_function_model`, `build_su_field`, `list_field_types`,
+ * `list_standard_solution_classes`, `render_su_field_svg`, `render_function_model_svg`, and
+ * `lookup_standard_solution`.
  *
  * Deliberately stateless -- unlike kSTEP's `kstep-mcp`, there is no `EntityStore` parameter here.
  * Every tool in this module is a pure function over [dev.ktriz.core.EngineeringParameter.entries],
@@ -32,7 +36,9 @@ private val logger = ktrizMcpLogger {}
  * singleton, [dev.ktriz.sufield.FieldType.entries], [dev.ktriz.sufield.StandardSolutionClass.entries],
  * and [dev.ktriz.sufield.SuField]'s own init validation -- no tool call here ever depends on, or
  * mutates, anything another call produced. This is also the strongest possible security position:
- * no cross-session state, no capacity limits to enforce, no concurrent-write races to reason about.
+ * no cross-session state and no concurrent-write races to reason about. The only shared resource is
+ * the bounded render-worker capacity in [guardedRender] (at most 2 concurrent renders, 10 s deadline);
+ * it holds no model state between calls.
  */
 fun buildServer(): Server {
     val server =
@@ -47,7 +53,10 @@ fun buildServer(): Server {
     registerBuildSuFieldTool(server)
     registerListFieldTypesTool(server)
     registerListStandardSolutionClassesTool(server)
-    logger.info { "kTRIZ MCP server assembled: 7 tools registered" }
+    registerRenderSuFieldSvgTool(server)
+    registerRenderFunctionModelSvgTool(server)
+    registerLookupStandardSolutionTool(server)
+    logger.info { "kTRIZ MCP server assembled: 10 tools registered" }
     return server
 }
 
@@ -133,7 +142,14 @@ suspend fun runStdioServer(server: Server = buildServer()) {
 // `./gradlew :ktriz-mcp:installDist`) -- see README, "MCP server", for why real MCP clients must
 // use that startup path rather than `./gradlew :ktriz-mcp:run` (Gradle's own console output
 // shares stdout with the JSON-RPC stream this process speaks).
-fun main() =
+fun main() {
+    // Must be the first statement: AWT font metrics are used by the render tools, and the property
+    // has no effect once AWT is initialised. The start script also passes it as a JVM argument.
+    System.setProperty("java.awt.headless", "true")
+    runMain()
+}
+
+private fun runMain() =
     runBlocking {
         runStdioServer()
     }

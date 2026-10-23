@@ -3,6 +3,7 @@ package dev.ktriz.mcp
 import dev.ktriz.core.EngineeringParameter
 import dev.ktriz.core.InventivePrinciple
 import dev.ktriz.sufield.FieldType
+import dev.ktriz.sufield.StandardSolution
 import dev.ktriz.sufield.StandardSolutionClass
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -53,4 +54,13 @@ fun StandardSolutionClass.toJson(): JsonObject =
         put("labelDe", labelDe)
         put("description", description)
         put("solutionCount", solutionCount)
+    }
+
+/** `{code, symbol, standardClass:{...}, labelEn}` for one of the 76 [StandardSolution]s. */
+fun StandardSolution.toJson(): JsonObject =
+    buildJsonObject {
+        put("code", code)
+        put("symbol", name)
+        put("standardClass", standardClass.toJson())
+        put("labelEn", labelEn)
     }

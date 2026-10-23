@@ -102,6 +102,8 @@ fun main(args: Array<String>) {
     // entry point before dispatch, for the same reason: the MCP subcommand speaks JSON-RPC on
     // stdout, and a banner line ahead of the protocol stream would corrupt it for any client.
     KotlinLoggingConfiguration.logStartupMessage = false
+    // `ktriz mcp` and `ktriz run` both render SVG (AWT font metrics): never start a GUI toolkit.
+    System.setProperty("java.awt.headless", "true")
     when (val command = resolveCommand(args)) {
         CliCommand.StartMcpServer -> runBlocking { runStdioServer() }
         is CliCommand.Run -> runScript(command)

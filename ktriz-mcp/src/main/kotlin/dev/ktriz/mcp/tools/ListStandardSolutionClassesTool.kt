@@ -43,8 +43,8 @@ fun registerListStandardSolutionClassesTool(server: Server) {
             "Lists the 5-class structure of Altshuller's 76 TRIZ standard solutions for Su-Field analysis, " +
                 "with `id`, exact Kotlin enum `symbol`, English/German label, a one-sentence description, " +
                 "and `solutionCount` (how many of the 76 individual solutions belong to that class -- " +
-                "13/23/6/17/17, summing to 76). kTRIZ bundles only this coarse classification, never the " +
-                "76 individual solution texts (no trustworthy primary source found -- see " +
+                "13/23/6/17/17, summing to 76). The 76 individual " +
+                "solutions are available via lookup_standard_solution (single source, see " +
                 "docs/standard-solutions-provenance.adoc). There is no automatic mapping from a " +
                 "SuFieldQuality to a class -- that correspondence is informal, not a documented 1:1 rule in " +
                 "the TRIZ literature, so this tool never guesses one; reason about it explicitly yourself. " +

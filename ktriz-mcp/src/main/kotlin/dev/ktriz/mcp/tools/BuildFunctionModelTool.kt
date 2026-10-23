@@ -33,7 +33,7 @@ const val MAX_EDGES = 500
 
 private val VALID_QUALITIES = FunctionQuality.entries.joinToString(", ") { it.name }
 
-private val INPUT_SCHEMA =
+internal val FUNCTION_MODEL_INPUT_SCHEMA: ToolSchema =
     ToolSchema(
         properties =
             buildJsonObject {
@@ -82,11 +82,14 @@ private fun asNonBlankString(
     return primitive.content
 }
 
-private fun parseComponentNames(element: JsonElement?): List<String> {
+private fun parseComponentNames(
+    element: JsonElement?,
+    maxComponents: Int,
+): List<String> {
     if (element == null || element is JsonNull) return emptyList()
     val array = element as? JsonArray ?: throw ToolInputException("field 'components' must be an array of strings")
-    if (array.size > MAX_COMPONENTS) {
-        throw ToolInputException("field 'components' exceeds the maximum allowed item count of $MAX_COMPONENTS")
+    if (array.size > maxComponents) {
+        throw ToolInputException("field 'components' exceeds the maximum allowed item count of $maxComponents")
     }
     return array.map { item ->
         val primitive = item as? JsonPrimitive
@@ -106,11 +109,14 @@ private data class RawEdge(
     val verb: String,
 )
 
-private fun parseEdges(element: JsonElement?): List<RawEdge> {
+private fun parseEdges(
+    element: JsonElement?,
+    maxEdges: Int,
+): List<RawEdge> {
     if (element == null || element is JsonNull) return emptyList()
     val array = element as? JsonArray ?: throw ToolInputException("field 'edges' must be an array of objects")
-    if (array.size > MAX_EDGES) {
-        throw ToolInputException("field 'edges' exceeds the maximum allowed item count of $MAX_EDGES")
+    if (array.size > maxEdges) {
+        throw ToolInputException("field 'edges' exceeds the maximum allowed item count of $maxEdges")
     }
     return array.map { item ->
         val obj = item as? JsonObject ?: throw ToolInputException("each entry in 'edges' must be an object")
@@ -217,30 +223,44 @@ private fun functionModelKotlinSnippet(model: FunctionModel): String {
 
 private fun Component.toJson(): JsonObject = buildJsonObject { put("name", name) }
 
+/**
+ * Shared input path of `build_function_model` and `render_function_model_svg`. Edge endpoints
+ * not already in `components` are auto-declared, so callers that need a bound on the *resulting*
+ * node count must check [FunctionModel.components] afterwards.
+ *
+ * @throws ToolInputException for shape / length / enum / count errors.
+ */
+internal fun parseFunctionModelArguments(
+    arguments: JsonObject?,
+    maxComponents: Int = MAX_COMPONENTS,
+    maxEdges: Int = MAX_EDGES,
+): FunctionModel {
+    val componentNames = parseComponentNames(arguments?.get("components"), maxComponents)
+    val rawEdges = parseEdges(arguments?.get("edges"), maxEdges)
+
+    // Endpoints not already in `componentNames` are auto-declared here via the same
+    // component(name) idempotent-dedup call the DSL itself exposes -- not a separate
+    // mechanism, so this handler's normalized `components` output is exactly what
+    // functionModel { } would have produced from equivalent hand-written Kotlin.
+    return functionModel {
+        componentNames.forEach { component(it) }
+        for (edge in rawEdges) {
+            val from = component(edge.from)
+            val to = component(edge.to)
+            when (edge.quality) {
+                FunctionQuality.USEFUL -> useful(from, to, edge.verb)
+                FunctionQuality.HARMFUL -> harmful(from, to, edge.verb)
+                FunctionQuality.INSUFFICIENT -> insufficient(from, to, edge.verb)
+                FunctionQuality.EXCESSIVE -> excessive(from, to, edge.verb)
+            }
+        }
+    }
+}
+
 /** Pure handler -- directly unit-testable, no server/transport involved. */
 fun buildFunctionModelHandler(arguments: JsonObject?): CallToolResult =
     mcpToolCall(TOOL_NAME) {
-        val componentNames = parseComponentNames(arguments?.get("components"))
-        val rawEdges = parseEdges(arguments?.get("edges"))
-
-        // Endpoints not already in `componentNames` are auto-declared here via the same
-        // component(name) idempotent-dedup call the DSL itself exposes -- not a separate
-        // mechanism, so this handler's normalized `components` output is exactly what
-        // functionModel { } would have produced from equivalent hand-written Kotlin.
-        val model =
-            functionModel {
-                componentNames.forEach { component(it) }
-                for (edge in rawEdges) {
-                    val from = component(edge.from)
-                    val to = component(edge.to)
-                    when (edge.quality) {
-                        FunctionQuality.USEFUL -> useful(from, to, edge.verb)
-                        FunctionQuality.HARMFUL -> harmful(from, to, edge.verb)
-                        FunctionQuality.INSUFFICIENT -> insufficient(from, to, edge.verb)
-                        FunctionQuality.EXCESSIVE -> excessive(from, to, edge.verb)
-                    }
-                }
-            }
+        val model = parseFunctionModelArguments(arguments)
 
         val summaryText =
             "Function model with ${model.components.size} component(s) and ${model.edges.size} edge(s)."
@@ -282,8 +302,9 @@ fun registerBuildFunctionModelTool(server: Server) {
                 "not an error. Self-loops ('from' == 'to') are allowed -- classical TRIZ function analysis " +
                 "explicitly models self-directed effects (e.g. a part overheating itself). 'quality' must " +
                 "be one of $VALID_QUALITIES (case-insensitive); anything else is a structured malformed_input " +
-                "error naming the valid values.",
-        inputSchema = INPUT_SCHEMA,
+                "error naming the valid values. To render the model as SVG, call render_function_model_svg " +
+                "(same arguments, tighter size limits).",
+        inputSchema = FUNCTION_MODEL_INPUT_SCHEMA,
     ) { request ->
         buildFunctionModelHandler(request.arguments)
     }
