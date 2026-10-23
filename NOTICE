@@ -80,6 +80,19 @@ independent sources: Wikipedia, "Laws of technical systems evolution"
 (CC BY-SA 4.0), and the MATRIZ blog (Copyright Matriz.org). kTRIZ takes only
 the structure and the names from them, no text. The short descriptions are
 written independently for kTRIZ. See docs/evolution-laws-provenance.adoc.
+
+The benchmark calibration set (benchmark/calibration-set.csv) contains
+paraphrased case descriptions and parameter pairs taken or derived from:
+WIPO, "Toolkit on New Product Development and Inventions in the Public
+Domain", Tool 13: TRIZ, 2024, https://www.wipo.int/export/sites/www/tisc/en/docs/tisc-toolkit-triz-description.pdf
+(CC BY 4.0, (c) WIPO 2024; the licence does not apply to non-WIPO third-party
+material in that document); and Stevko, Kohar, Cechmanek, Medvecka, Novy,
+"Optimization of the Tire Building Drum for Passenger Tires Using the TRIZ
+Methodology", Management Systems in Production Engineering 31(3), 2023,
+DOI 10.2478/mspe-2023-0040 (CC BY 4.0). The descriptions are adapted and
+paraphrased; changes were made. One case uses only facts from the MATRIZ Wiki
+page "Engineering (technical) contradiction" and no text. See
+docs/calibration-set.adoc.
 kTRIZ does not bundle evolution lines or TESE trends, and no material by
 Souchkov or CTQ Media.
 

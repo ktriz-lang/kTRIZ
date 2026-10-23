@@ -39,7 +39,7 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today (v0.3.1, pre-release, source only; 453 Kotest test cases):
+What works today (v0.3.1, pre-release, source only; 468 Kotest test cases):
 
 * The contradiction spine: all 39 engineering parameters and 40 inventive
   principles as Kotlin enums with English and German labels, `Contradiction`
@@ -73,6 +73,9 @@ What works today (v0.3.1, pre-release, source only; 453 Kotest test cases):
 
 | link:docs/contradiction-matrix.adoc[Contradiction matrix data]
 | Where the 1248 cells come from, the pluggable matrix source, the open database-right question.
+
+| link:docs/calibration-set.adoc[Calibration set]
+| Six sourced cases for the contradiction-extraction benchmark; explicitly not a gold set.
 
 | link:docs/scripting.adoc[Scripting]
 | Running `.ktriz.kts` scripts with `ktriz run`, JSON output, rendering an SVG from a script.

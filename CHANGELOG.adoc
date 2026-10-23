@@ -6,6 +6,20 @@ without a deprecation period.
 
 == Unreleased
 
+=== Benchmark calibration set
+
+* New `benchmark/calibration-set.csv`: six sourced contradiction cases (three WIPO
+  Tool 13, two Stevko et al. 2023, one MATRIZ Wiki) with improving and worsening
+  parameter, sources, licence and a confidence level (three `high`, three `low`).
+* Documentation `docs/calibration-set.adoc` (column format, confidence levels,
+  attribution, gap to a real gold set) and a `NOTICE` entry for the CC BY 4.0 sources.
+* New `CalibrationSetTest` validates the file (header, field counts, ids, parameter
+  ranges, matrix cells, principle lists, https sources, confidence vocabulary). Gradle
+  hands the CSV path to the test as the system property `ktriz.calibration.csv`.
+* Explicitly not a gold set: six cases, no independent second annotator, and no
+  model results. No scorer or harness is included.
+* Tests: 468 (was 453).
+
 === Evolution laws
 
 * New `EvolutionLaw` enum (eight classical laws of technical systems evolution,

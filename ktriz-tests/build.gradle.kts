@@ -24,8 +24,14 @@ dependencies {
     testRuntimeOnly(libs.slf4j.simple) // fuer den Logging-Test
 }
 
+// The calibration CSV lives at the repository root (single source); tests run with the module
+// directory as working dir, so the absolute path is handed in as a system property.
+val calibrationCsv = rootProject.layout.projectDirectory.file("benchmark/calibration-set.csv")
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    inputs.file(calibrationCsv).withPropertyName("calibrationCsv")
+    systemProperty("ktriz.calibration.csv", calibrationCsv.asFile.absolutePath)
     systemProperty("java.awt.headless", "true")
     systemProperty("ktriz.expected.version", project.version.toString())
 }

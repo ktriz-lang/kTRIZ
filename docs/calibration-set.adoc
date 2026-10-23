@@ -1,0 +1,97 @@
+= kTRIZ guide: Calibration set
+:toc:
+
+Part of the link:../README.adoc[kTRIZ] documentation. Related:
+link:contradiction-matrix.adoc#matrix[Contradiction matrix data].
+
+[#calibration-set]
+== Purpose
+
+`benchmark/calibration-set.csv` holds six sourced technical contradictions, each
+with the two engineering parameters (improving and worsening) that a sound
+extraction should recover from the case description. It is a calibration base
+for the contradiction-extraction benchmark described in kTRIZ-ADR-0005 and for
+a future Paper 3: it can be used to test a scoring pipeline and to calibrate
+prompts.
+
+== Explicitly not a gold set
+
+* Six cases, of which three have confidence `high`, are far too few for a gold
+  set.
+* The mapping from the prose of a source to engineering parameters was not
+  checked by two independent annotators.
+* The set says nothing about model results. kTRIZ ships neither a scorer nor a
+  harness; those live in the kUML paper repository.
+
+== Column format
+
+The file is UTF-8 with LF line ends and a header row. Fields containing a
+comma or a quotation mark are wrapped in `"`, with `""` as the escape. There
+are no line breaks inside fields.
+
+[cols="2,1,4"]
+|===
+| Column | Type | Meaning
+
+| `id` | slug | Unique, `[a-z0-9-]+`, prefixed by the source family.
+| `description_en` | text | Paraphrase of the case in English. Not a quotation.
+| `improving_id` | int 1..39 | Engineering parameter to improve (matrix row).
+| `worsening_id` | int 1..39 | Engineering parameter that gets worse (matrix column). Differs from `improving_id`.
+| `principle_ids` | `;`-list | Inventive principles the source itself names, in the order of the source. Empty if the source names none.
+| `source_url` | https URL | Where the case comes from.
+| `source_citation` | text | Full citation for attribution.
+| `licence` | text | Licence of the source as stated there.
+| `confidence` | enum | `high`, `medium` or `low`, see below.
+| `matrix_cell_populated` | bool | `true` if the bundled matrix holds principles for this pair.
+| `notes` | text | Caveats, matrix cell contents, rationale for the confidence.
+|===
+
+When `principle_ids` is not empty it must equal the bundled matrix cell in the
+same order (the cell is a TRIZ rank order). A deliberate deviation must carry
+the marker `principle-mismatch:` in `notes`. For the three WIPO cases
+`principle_ids` is empty on purpose, because the source names no principles
+for them; the matrix cell is recorded in `notes` only.
+
+== Confidence levels
+
+* `high`: the source states the parameter pair explicitly (with feature numbers).
+* `medium`: the pair follows from the source with a small, stated inference.
+* `low`: the pair rests on an inference or on a shaky match between prose and
+  parameter. These cases are noisy labels and should be treated as such.
+
+== Sources and attribution
+
+* WIPO, _Toolkit on New Product Development and Inventions in the Public
+  Domain_, Tool 13: TRIZ, 2024 (biofuels mini-refinery example). Licence
+  https://creativecommons.org/licenses/by/4.0/[CC BY 4.0], (c) WIPO 2024. The
+  descriptions are paraphrases; changes were made. The licence does not cover
+  third-party material in the WIPO text.
+* Stevko, Kohar, Cechmanek, Medvecka, Novy: _Optimization of the Tire Building
+  Drum for Passenger Tires Using the TRIZ Methodology_, Management Systems in
+  Production Engineering 31(3), 2023, DOI 10.2478/mspe-2023-0040. Licence
+  https://creativecommons.org/licenses/by/4.0/[CC BY 4.0]. The descriptions are
+  paraphrases; changes were made.
+* MATRIZ Wiki, "Engineering (technical) contradiction". The page states a
+  Creative Commons licence without naming a version. Only facts are used and no
+  text is taken; the case is `low`. Clarifying the licence with MATRIZ is an
+  open item.
+
+See also the `NOTICE` file.
+
+== Gap to a real gold set
+
+A usable gold set needs roughly 20 to 50 cases. Possible routes, none done yet:
+
+* own cases, each labelled by two independent annotators, with an agreement
+  check (Cohen's kappa);
+* access to PaTRIZ (licence to be clarified);
+* AutoTRIZ material, only with the permission of its authors.
+
+== Validation
+
+`CalibrationSetTest` in `ktriz-tests` checks the header, field counts, unique
+ids, parameter ranges, the bundled matrix cell (`matrix_cell_populated`, and
+`principle_ids` against the cell), https source URLs, non-empty attribution
+fields, the confidence vocabulary and that no MATRIZ-derived case is `high`.
+Gradle passes the CSV path to the test as the system property
+`ktriz.calibration.csv`.
