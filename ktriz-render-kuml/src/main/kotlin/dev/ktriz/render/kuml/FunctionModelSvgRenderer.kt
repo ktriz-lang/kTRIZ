@@ -56,7 +56,8 @@ private const val EMPTY_CANVAS_HEIGHT_PX = 120f
  * Edge-verb labels are placed by a greedy 2D collision-avoidance pass ([placeEdgeLabels]):
  * for every edge (in declaration order, so placement is deterministic), a small set of candidate
  * baseline positions alternating above/below the route's midpoint is tried, and the one with the
- * least overlap area against every label and node box already placed is kept. If no candidate
+ * least overlap area against every label and node box already placed is kept (ties broken by the
+ * least crossed foreign-line length, see below). If no candidate
  * avoids overlap entirely, the verb is truncated with an ellipsis (the same mechanism
  * [displayTextFor] uses for over-wide node names) and re-searched; whichever of the full or
  * truncated text ends up with the smaller total overlap area wins -- this always terminates in a
@@ -69,9 +70,10 @@ public fun FunctionModel.renderSvg(): String {
         return svgDocument(width = EMPTY_CANVAS_WIDTH_PX, height = EMPTY_CANVAS_HEIGHT_PX, body = "")
     }
 
-    val result = ElkLayoutEngine().layout(graph = toLayoutGraph(LayoutHints.DEFAULT), hints = LayoutHints.DEFAULT)
-    val geometry = computeEdgeBases(result)
-    val labels = placeEdgeLabels(result, geometry.bases)
+    val plan = computeRenderPlan()
+    val result = plan.result
+    val geometry = plan.geometry
+    val labels = plan.labels
     val body = renderBody(result, geometry, labels)
     val bounds = canvasBoundsFor(result, geometry, labels)
     val positionedBody =
@@ -81,6 +83,20 @@ public fun FunctionModel.renderSvg(): String {
             body
         }
     return svgDocument(width = bounds.width, height = bounds.height, body = positionedBody)
+}
+
+/** Layout, edge geometry and label placement of one render -- split out so tests can inspect it. */
+internal class RenderPlan(
+    val result: LayoutResult,
+    val geometry: EdgeGeometry,
+    val labels: Map<Int, EdgeLabelPlacement>,
+)
+
+/** Runs layout, edge geometry and label placement; [avoidLines] = `false` reproduces the pre-line-avoidance placement. */
+internal fun FunctionModel.computeRenderPlan(avoidLines: Boolean = true): RenderPlan {
+    val result = ElkLayoutEngine().layout(graph = toLayoutGraph(LayoutHints.DEFAULT), hints = LayoutHints.DEFAULT)
+    val geometry = computeEdgeBases(result)
+    return RenderPlan(result, geometry, placeEdgeLabels(result, geometry, avoidLines))
 }
 
 /**
@@ -129,7 +145,7 @@ private fun FunctionModel.canvasBoundsFor(
  * placement are derived from -- keyed by the edge's index in [FunctionModel.edges], every edge
  * with a non-degenerate route present.
  */
-private data class EdgeGeometry(
+internal data class EdgeGeometry(
     val bases: Map<Int, List<Point>>,
     /** Wave amplitude per bundled edge; edges absent here (single edges, self-loops) use [WAVE_AMPLITUDE_PX]. */
     val waveAmplitude: Map<Int, Float> = emptyMap(),
@@ -194,7 +210,7 @@ private fun FunctionModel.computeEdgeBases(result: LayoutResult): EdgeGeometry {
 }
 
 /** A resolved, collision-checked verb-label placement for one edge -- see [placeEdgeLabels]. */
-private data class EdgeLabelPlacement(
+internal data class EdgeLabelPlacement(
     val text: String,
     val truncated: Boolean,
     val centerX: Float,
@@ -205,7 +221,13 @@ private data class EdgeLabelPlacement(
 private const val LABEL_CANDIDATE_MAX = 60
 
 /** Extra clearance kept between a label's box and any other label/node box it is checked against, beyond literal overlap. */
-private const val LABEL_COLLISION_PAD_PX = 2f
+internal const val LABEL_COLLISION_PAD_PX = 2f
+
+/** Highest candidate index (inclusive; levels 0..3 around the midpoint) for which crossing of foreign lines is also minimised. */
+internal const val LABEL_LINE_SEARCH_MAX_CANDIDATE = 6
+
+/** Crossing length (px) at or below which a candidate counts as line-free. */
+internal const val LABEL_LINE_EPSILON_PX = 0.5f
 
 /** Width budget (as a fraction of the full verb's measured width) a label is shrunk to when the fallback truncation search runs. */
 private const val LABEL_TRUNCATE_WIDTH_FACTOR = 0.6f
@@ -229,20 +251,36 @@ private const val LABEL_TRUNCATE_WIDTH_FACTOR = 0.6f
  * [displayTextFor], the same mechanism over-wide node names use) and the search is repeated;
  * whichever of the full-text or truncated-text result has the smaller overlap area wins, and a
  * truncated placement carries a `<title>` tooltip with the full verb (mirrors [renderNode]'s
- * truncated-name tooltip). This is O(E * [LABEL_CANDIDATE_MAX] * (E + V)) in the worst case --
- * bounded per edge, so a pathologically large [FunctionModel] cannot make label placement itself
- * a runaway cost.
+ * truncated-name tooltip). This is O(E * [LABEL_CANDIDATE_MAX] * (E + V)) for the box checks plus
+ * O(E * 7 * S) for the line checks (S = total foreign polyline segments, bounding-box-rejected
+ * per edge) in the worst case -- bounded per edge, so a pathologically large [FunctionModel]
+ * cannot make label placement itself a runaway cost.
+ *
+ * Line avoidance (secondary criterion): among candidates with equal overlap area, the one whose
+ * label box (grown per foreign line by its wave amplitude, half the double-stroke gap and half
+ * the stroke width -- an approximation, since those offsets are not part of the base geometry)
+ * covers the least foreign-line length wins; the own edge is ignored. The comparison is
+ * lexicographic (area, line length): label/label and label/node overlap hurt attribution and
+ * legibility more than a crossed line, which the label halo (see `LABEL_HALO_WIDTH_PX`) keeps
+ * readable. Line length is only evaluated for candidates `0..`[LABEL_LINE_SEARCH_MAX_CANDIDATE]
+ * (levels 0..3) so a label never drifts far from its own edge just to dodge a line; beyond that
+ * reach the search behaves as before. Line crossings never trigger truncation, only area does.
+ * Greedy order still applies: later labels see earlier ones only as boxes, not as lines.
+ * [avoidLines] = `false` reproduces the previous placement exactly (tests/measurement only).
  *
  * Multiple edges between the same pair already bow apart so their *lines* stay individually
- * visible (see [computeEdgeBases]), but without collision-aware label placement their verb labels
- * could still visually collide, since text width usually exceeds the bow spacing. A self-loop's
+ * visible (see [computeEdgeBases]), but text width usually exceeds the bow spacing, so verb
+ * labels would still collide with each other or with neighbouring lines without this search. A self-loop's
  * single label needs no collision search against its own group unless multiple self-loops share
  * the same component, in which case the same search applies.
  */
-private fun FunctionModel.placeEdgeLabels(
+internal fun FunctionModel.placeEdgeLabels(
     result: LayoutResult,
-    bases: Map<Int, List<Point>>,
+    geometry: EdgeGeometry,
+    avoidLines: Boolean = true,
 ): Map<Int, EdgeLabelPlacement> {
+    val bases = geometry.bases
+    val obstacles = if (avoidLines) lineObstacles(geometry) else emptyList()
     val nodeBoxes = result.nodes.values.map { it.bounds.toLabelBox() }
     val placed = mutableListOf<LabelBox>()
     val out = LinkedHashMap<Int, EdgeLabelPlacement>()
@@ -261,20 +299,32 @@ private fun FunctionModel.placeEdgeLabels(
         midX: Float,
         midY: Float,
         text: String,
+        edgeIndex: Int,
     ): Pair<Float, Float> {
         val ownHeight = edgeLabelBoxAt(text, midX, 0f).let { it.maxY - it.minY }
         val stepPx = maxOf(EDGE_LABEL_STACK_STEP_PX, ownHeight + 2f * LABEL_COLLISION_PAD_PX)
         var bestY = candidateY(midY, 0, stepPx)
         var bestArea = Float.MAX_VALUE
+        var bestLine = Float.MAX_VALUE
         for (c in 0 until LABEL_CANDIDATE_MAX) {
+            // Beyond the line-search reach the search behaves exactly as before: the first
+            // overlap-free candidate wins, unless a nearer overlap-free one is already held.
+            if (c > LABEL_LINE_SEARCH_MAX_CANDIDATE && bestArea == 0f) break
             val y = candidateY(midY, c, stepPx)
             val box = edgeLabelBoxAt(text, midX, y).inflate(LABEL_COLLISION_PAD_PX)
             val area =
                 placed.sumOf { box.overlapAreaWith(it).toDouble() }.toFloat() +
                     nodeBoxes.sumOf { box.overlapAreaWith(it).toDouble() }.toFloat()
-            if (area == 0f) return y to 0f
-            if (area < bestArea) {
+            val line =
+                when {
+                    !avoidLines -> 0f
+                    c <= LABEL_LINE_SEARCH_MAX_CANDIDATE -> obstacles.lengthInside(box, edgeIndex)
+                    else -> Float.MAX_VALUE
+                }
+            if (area == 0f && line <= LABEL_LINE_EPSILON_PX) return y to 0f
+            if (area < bestArea || (area == bestArea && line < bestLine)) {
                 bestArea = area
+                bestLine = line
                 bestY = y
             }
         }
@@ -284,14 +334,14 @@ private fun FunctionModel.placeEdgeLabels(
     edges.forEachIndexed { index, edge ->
         val base = bases[index] ?: return@forEachIndexed
         val mid = midpointOf(base)
-        val (fullY, fullArea) = bestOf(mid.x, mid.y, edge.verb)
+        val (fullY, fullArea) = bestOf(mid.x, mid.y, edge.verb, index)
         val (finalText, finalY, truncated) =
             if (fullArea == 0f) {
                 Triple(edge.verb, fullY, false)
             } else {
                 val shrunkWidth = measuredEdgeLabelWidthPx(edge.verb) * LABEL_TRUNCATE_WIDTH_FACTOR
                 val shrunk = displayTextFor(edge.verb, shrunkWidth, ::measuredEdgeLabelWidthPx)
-                val (shrunkY, shrunkArea) = bestOf(mid.x, mid.y, shrunk.text)
+                val (shrunkY, shrunkArea) = bestOf(mid.x, mid.y, shrunk.text, index)
                 if (shrunkArea < fullArea) {
                     Triple(shrunk.text, shrunkY, shrunk.truncated)
                 } else {
@@ -373,6 +423,8 @@ private fun renderEdge(
     val labelText = xmlEscapeText(placement.text)
     val label =
         """<text x="${placement.centerX}" y="${placement.baselineY}" text-anchor="middle" """ +
-            """font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX">$titleTag$labelText</text>"""
+            """font-family="$NODE_FONT_FAMILY" font-size="$EDGE_LABEL_FONT_SIZE_PX" fill="$LABEL_TEXT_COLOR" """ +
+            """stroke="$LABEL_HALO_COLOR" stroke-width="$LABEL_HALO_WIDTH_PX" stroke-linejoin="round" """ +
+            """paint-order="stroke">$titleTag$labelText</text>"""
     return pathTags + arrowTag + label
 }

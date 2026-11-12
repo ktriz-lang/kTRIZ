@@ -6,6 +6,30 @@ without a deprecation period.
 
 == Unreleased
 
+=== Rendering: labels versus lines
+
+* Edge-verb labels now avoid foreign lines: label placement keeps the least
+  overlap with other labels and nodes as its primary criterion and, among equal
+  candidates, picks the one covering the least foreign-line length (own edge
+  ignored). Only candidates within three levels of the route midpoint are
+  considered for this, so a label never drifts far from its own edge just to dodge
+  a line; a line crossing never causes a verb to be truncated. The line test is an
+  approximation (the box is grown by wave amplitude and half the double-stroke gap,
+  not by exact wavy/doubled paths).
+* Edge-verb labels carry a 3 px halo in the diagram's paper colour (`fill`,
+  `stroke`, `stroke-width`, `stroke-linejoin`, `paint-order` as presentation
+  attributes, so it survives the `obsidian-ktriz` sanitiser). The canvas stays
+  transparent. Node names and Su-Field output are unchanged; the reference SVG
+  `function-model-single-edges.svg` was updated for exactly these attributes.
+* Measured label/foreign-line crossing pairs (stress bundles with mixed
+  directions and qualities, before -> after): 6 edges 3 -> 0, 12 edges 7 -> 6,
+  24 edges 43 -> 29.
+* Known limits: dense bundles still have labels crossing lines (halo keeps them
+  readable); in the 24-edge bundle a few labels sit up to three levels away from
+  their edge; in a dark host theme lines and node frames stay dark on the
+  transparent canvas.
+* Tests: 478 (was 468).
+
 === Benchmark calibration set
 
 * New `benchmark/calibration-set.csv`: six sourced contradiction cases (three WIPO
@@ -18,7 +42,7 @@ without a deprecation period.
   hands the CSV path to the test as the system property `ktriz.calibration.csv`.
 * Explicitly not a gold set: six cases, no independent second annotator, and no
   model results. No scorer or harness is included.
-* Tests: 468 (was 453).
+* Tests: 478 (was 468).
 
 === Evolution laws
 
@@ -42,13 +66,14 @@ without a deprecation period.
   lines no longer cross at their ends. The self-loop band on the right side
   stays free of anchors.
 * A component carrying a bundle is widened to fit its anchors (capped at
-  320 px); other components and models without a bundle render byte-identically
-  to before (guarded by reference-SVG tests, also for Su-Field output).
+  320 px); other components and models without a bundle keep their geometry (guarded by
+  reference-SVG tests, also for Su-Field output).
 * Wavy (`HARMFUL`) strokes inside a bundle use an amplitude of at most 40% of
   the gap to the neighbouring anchor.
 * Known limit: with more than about 37 edges between one pair the anchors are
   closer than an arrowhead is wide (8 px) and neighbouring arrowheads touch;
-  verb labels of dense bundles can still cross neighbouring lines.
+  verb labels of dense bundles can still cross neighbouring lines (reduced, not
+  eliminated, see "Rendering: labels versus lines").
 * Tests: 445 (was 423) -- 15 unit tests for anchor distribution and node sizing
   now live in `ktriz-render-kuml` (internal functions are not visible from
   `ktriz-tests`), 7 new render tests in `ktriz-tests`; one existing test now

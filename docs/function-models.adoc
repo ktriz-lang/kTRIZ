@@ -100,8 +100,13 @@ Known limits:
   The arrowhead is 8 px wide, which gives `296 / 8 = 37` edges: beyond about
   37 edges between one pair the end points are closer than an arrowhead is
   wide and neighbouring arrowheads touch (at 24 edges the gap is about 12 px).
-* Verb labels of a bundle of 24 edges can still cross neighbouring lines; the
-  label placement only avoids label/label and label/node overlap.
+* Verb labels avoid foreign lines within three levels of the route midpoint;
+  where a crossing is unavoidable, a 3 px halo in the paper colour keeps the
+  text readable. Measured on mixed stress bundles, label/line crossing pairs fell
+  from 3 to 0 (6 edges), 7 to 6 (12 edges) and 43 to 29 (24 edges). In very dense
+  bundles labels still cross lines, and some labels of the 24-edge bundle sit
+  a few lines away from their own edge. In a dark host theme the lines and node
+  frames stay dark on the transparent canvas (not addressed).
 * The route inside the bundle follows the ELK route for the pair, resampled;
   lines can brush the neighbouring node or unrelated edges that ELK routed
   around.

@@ -13,6 +13,18 @@ internal const val NODE_STROKE_COLOR = "#000000"
 internal const val NODE_FILL_COLOR = "#ffffff"
 internal const val EDGE_STROKE_COLOR = "#333333"
 
+/**
+ * Edge-verb label halo: a stroke in the diagram's own paper colour drawn *under* the glyphs
+ * (`paint-order="stroke"`), so a label stays readable where it must cross a line. This is the
+ * paper colour of the diagram, not the host's: the canvas stays transparent (no background
+ * rect, no filter, no opacity), because obsidian-ktriz strips `<style>` and `style` attributes
+ * and only presentation attributes survive -- hence no media-query solution. Known limit: in a
+ * dark host theme lines and node frames stay dark on dark.
+ */
+internal const val LABEL_HALO_COLOR = NODE_FILL_COLOR
+internal const val LABEL_HALO_WIDTH_PX = 3f
+internal const val LABEL_TEXT_COLOR = NODE_STROKE_COLOR
+
 /** Canvas size plus the translation applied to every emitted coordinate. */
 internal data class CanvasBounds(
     val width: Float,

@@ -123,7 +123,10 @@ private fun shouldMatchReference(
 class FunctionModelBundleRenderTest :
     StringSpec({
         // Regression guard: models without any multi-edge pair must keep exactly the structure they
-        // had before this change (the reference was generated from the unmodified renderer).
+        // had before this change (the reference was generated from the unmodified renderer). The
+        // only deliberate change since: edge-verb label <text> elements gained the five halo
+        // attributes (fill, stroke, stroke-width, stroke-linejoin, paint-order) -- the reference
+        // was updated for exactly that; su-field.svg stays untouched, which the next test proves.
         "a model with only single edges and a self-loop keeps the pre-bundle reference structure (font-independent)" {
             val fm =
                 functionModel {
@@ -277,5 +280,33 @@ class FunctionModelBundleRenderTest :
                     inside(cx + b.width / 2, by + b.y + b.height)
                 }
             }
+        }
+
+        // Edge-verb labels carry a paper-coloured halo (all five presentation attributes, so it
+        // survives obsidian-ktriz's style stripping); node names and Su-Field output do not.
+        "every edge label has the halo attributes, node names and Su-Field output have none" {
+            val doc = parse(mixedBundle(6, solidOnly = false).renderSvg())
+            val labels = doc.tags("text").filter { it.getAttribute("font-size") == "12.0" }
+            labels shouldHaveSize 6
+            labels.forEach {
+                it.getAttribute("fill") shouldBe "#000000"
+                it.getAttribute("stroke") shouldBe "#ffffff"
+                it.getAttribute("stroke-width") shouldBe "3.0"
+                it.getAttribute("stroke-linejoin") shouldBe "round"
+                it.getAttribute("paint-order") shouldBe "stroke"
+            }
+            doc.tags("text").filter { it.getAttribute("font-size") == "14.0" }.forEach {
+                it.hasAttribute("paint-order") shouldBe false
+            }
+            val sf =
+                suField {
+                    val w = component("Workpiece")
+                    val t = component("Grinding wheel")
+                    s1(w)
+                    s2(t)
+                    field(FieldType.MECHANICAL)
+                    quality(SuFieldQuality.INSUFFICIENT)
+                }
+            sf.renderSvg().contains("paint-order") shouldBe false
         }
     })
