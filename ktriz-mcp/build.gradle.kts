@@ -44,18 +44,38 @@ tasks.processResources {
     }
 }
 
+// Not part of runtimeClasspath/runtimeElements, hence absent from the published POM.
+val launcherLogging: Configuration by configurations.creating
+
+tasks.startScripts {
+    classpath = classpath!! + launcherLogging
+}
+
+distributions {
+    main {
+        contents {
+            into("lib") { from(launcherLogging) }
+        }
+    }
+}
+
 dependencies {
-    implementation(project(":ktriz-core"))
+    // `api`: these types appear in the public signatures (buildServer(): Server, CallToolResult,
+    // JsonObject, EngineeringParameter.toJson()), so consumers of the published POM need them on
+    // their compile classpath (scope compile, not runtime).
+    api(project(":ktriz-core"))
     // Rendering fuer render_su_field_svg / render_function_model_svg. Zieht ELK, EMF, Guava und
     // xtext transitiv mit -- die Distribution von ktriz-mcp wird dadurch deutlich groesser.
     implementation(project(":ktriz-render-kuml"))
-    implementation(libs.mcp.kotlin.sdk.server)
+    api(libs.mcp.kotlin.sdk.server)
     // Explizit deklariert statt transitiv ueber das MCP-SDK mitgenommen: dieses Modul benutzt
     // JsonObject/buildJsonObject und Job/runBlocking in *eigenem* Quelltext -- eine bewusste,
     // begruendete Abweichung vom kstep-mcp-Muster (das sich auf die Transitivitaet verlaesst).
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.coroutines.core)
+    api(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.coroutines.core)
     // Projektweite Kotlin-Konvention (CLAUDE.md): Logging ausschliesslich ueber kotlin-logging.
     implementation(libs.kotlin.logging.jvm)
-    runtimeOnly(libs.slf4j.simple)
+    // SLF4J backend only for the standalone application distribution (see launcherLogging above),
+    // never in the published POM: a library must not force a backend on its consumers.
+    launcherLogging(libs.slf4j.simple)
 }

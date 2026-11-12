@@ -1,0 +1,81 @@
+= Releasing to Maven Central
+:toc:
+
+Maven Central publishing is *prepared but not yet used*: no kTRIZ artifact has been
+published. This page describes the setup and the release procedure.
+
+[#prerequisites]
+== Prerequisites
+
+* The namespace `dev.ktriz` is verified in the Sonatype Central Portal (DNS TXT record on
+  `ktriz.dev`). Without a verified namespace the first upload is rejected.
+* A Central Portal user token (username and password pair).
+* A GPG key whose public part is published on a keyserver.
+
+[#secrets]
+== Repository secrets
+
+The workflow `.github/workflows/release-maven-central.yml` needs these secrets in
+`ktriz-lang/kTRIZ`:
+
+[cols="1,2"]
+|===
+| Secret | Content
+
+| `SONATYPE_USERNAME` | Central Portal token username
+| `SONATYPE_PASSWORD` | Central Portal token password
+| `GPG_SIGNING_KEY` | ASCII-armored private key
+| `GPG_PASSPHRASE` | Passphrase of that key
+|===
+
+The maintainer always sets the values personally, for example with
+`gh secret set SONATYPE_USERNAME --repo ktriz-lang/kTRIZ` (interactive). The publish step
+aborts with an error if any of them is empty, so nothing is uploaded unsigned.
+
+[#what-is-published]
+== What gets published
+
+Coordinates `dev.ktriz:<module>:<version>` for `ktriz-core`, `ktriz-render-kuml`,
+`ktriz-script` and `ktriz-mcp`. `ktriz-cli` and `ktriz-tests` are not published. The list is a
+whitelist in the root `build.gradle.kts` (`publishedModules`), so new modules are never
+published by accident. Each module ships a JAR, a sources JAR and an empty javadoc JAR.
+
+NOTE: The `ktriz-core` JAR contains the classical contradiction matrix as a classpath
+resource. Publishing makes that compilation public and permanent; see
+link:contradiction-matrix.adoc#matrix[Contradiction matrix data] for the open database-right
+question.
+
+[#dry-run]
+== Dry run without credentials
+
+[source,bash]
+----
+./gradlew clean publishToMavenLocal --no-configuration-cache
+ls ~/.m2/repository/dev/ktriz
+rm -rf ~/.m2/repository/dev/ktriz   # clean up afterwards
+----
+
+Without a `signingInMemoryKey` property nothing is signed and nothing leaves the machine.
+
+[#procedure]
+== Release procedure
+
+. Bump `version` in the `allprojects` block of the root `build.gradle.kts` by hand. The
+  version is hardcoded, not derived from the tag (kUML v0.53.0 was tagged with the old
+  version in the code and the release pipeline failed).
+. Update `CHANGELOG.adoc` and all documentation surfaces.
+. Squash onto `master`, push, wait for CI to turn green.
+. Create an annotated tag: `git tag -a vX.Y.Z -m "..."`.
+. Push the tag explicitly: `git push origin refs/tags/vX.Y.Z`.
+. Watch the workflow run. It aborts if the tag and the Gradle version differ.
+. Check `https://repo1.maven.org/maven2/dev/ktriz/` afterwards; indexing can take a while.
+
+[#immutable]
+== Maven Central is immutable
+
+A published version can never be overwritten or deleted; only a version bump fixes
+mistakes. The workflow uses `automaticRelease`, so a successful upload is released at once.
+Re-runs are idempotent: the workflow probes the `ktriz-core` POM on Central and skips the
+upload if it exists. This probe covers only `ktriz-core`; all modules go up in one
+deployment, but after a partial publication the remaining modules would be skipped and need
+manual attention.

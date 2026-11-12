@@ -6,6 +6,10 @@ without a deprecation period.
 
 == Unreleased
 
+=== Build
+
+* Maven Central publishing prepared (not yet published): ktriz-core, ktriz-render-kuml, ktriz-script and ktriz-mcp get coordinates `dev.ktriz:<module>`, POM metadata, sources and (empty) javadoc JARs; new tag-triggered workflow `release-maven-central.yml`; see `docs/release.adoc`. No artifact has been published.
+
 === Rendering: labels versus lines
 
 * Edge-verb labels now avoid foreign lines: label placement keeps the least

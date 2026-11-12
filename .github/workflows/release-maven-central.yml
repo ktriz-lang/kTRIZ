@@ -1,0 +1,76 @@
+name: Release (Maven Central)
+
+on:
+  push:
+    tags: [ 'v*.*.*' ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-maven-central-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish libraries to Maven Central
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Derive version from tag and verify against Gradle project version
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          GRADLE_VERSION="$(./gradlew -q properties --no-configuration-cache | sed -n 's/^version: //p' | head -n1)"
+          echo "Tag: ${TAG_VERSION}  Gradle: ${GRADLE_VERSION}"
+          if [ -z "$GRADLE_VERSION" ] || [ "$TAG_VERSION" != "$GRADLE_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match Gradle project version '${GRADLE_VERSION}' -- bump version in build.gradle.kts before tagging."
+            exit 1
+          fi
+          echo "version=${TAG_VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Maven Central is immutable: skip the upload when the version is already live.
+      # Only ktriz-core is probed (all modules go up in one deployment); see docs/release.adoc.
+      - name: Check if libraries already on Maven Central
+        id: mc_check
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          POM_URL="https://repo1.maven.org/maven2/dev/ktriz/ktriz-core/${VERSION}/ktriz-core-${VERSION}.pom"
+          HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
+          echo "Probe: $POM_URL -> HTTP $HTTP_STATUS"
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::v${VERSION} already on Maven Central -- skipping publishToMavenCentral"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & test
+        if: steps.mc_check.outputs.already_published != 'true'
+        run: ./gradlew clean check
+
+      - name: Publish libraries to Maven Central
+        if: steps.mc_check.outputs.already_published != 'true'
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # Fail early instead of uploading unsigned or unauthenticated (names only, never values).
+          for VAR in ORG_GRADLE_PROJECT_mavenCentralUsername ORG_GRADLE_PROJECT_mavenCentralPassword \
+                     ORG_GRADLE_PROJECT_signingInMemoryKey ORG_GRADLE_PROJECT_signingInMemoryKeyPassword; do
+            if [ -z "${!VAR}" ]; then
+              echo "::error::Required secret behind ${VAR} is empty or not set -- see docs/release.adoc"
+              exit 1
+            fi
+          done
+          ./gradlew publishToMavenCentral --no-configuration-cache

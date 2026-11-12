@@ -83,6 +83,9 @@ What works today (v0.3.1, pre-release, source only; 478 Kotest test cases):
 | link:docs/mcp-server.adoc[MCP server]
 | `ktriz mcp`, client configuration, the thirteen tools, render limits, an example call.
 
+| link:docs/release.adoc[Releasing]
+| Maven Central publishing setup (prepared, nothing published yet), secrets, dry run, release procedure.
+
 | link:docs/roadmap.adoc[Roadmap]
 | What is done, what is deliberately not built.
 

@@ -30,6 +30,9 @@ jobs:
       - name: Build
         run: ./gradlew clean check
 
+      - name: Verify Maven Central publication (POMs and consumer compile)
+        run: scripts/verify-publication.sh
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
