@@ -4,9 +4,9 @@ image::docs/images/ktriz-banner.png[kTRIZ — Kotlin TRIZ DSL,link=https://githu
 
 Type-safe Kotlin DSL for TRIZ (Theory of Inventive Problem Solving).
 
-WARNING: kTRIZ is pre-release software. The current tag is `v0.3.1` (source
-only: there is no published artifact on Maven Central or Homebrew), the API
-is unstable, and breaking changes may happen in any release. What exists: the
+WARNING: kTRIZ is pre-release software. The current tag is `v0.4.0`. The libraries are
+published on Maven Central (group `dev.ktriz`, see <<use-as-library,Use as a library>>); there is no
+Homebrew formula and no installer yet. The API is unstable, and breaking changes may happen in any release. What exists: the
 contradiction spine with the full classical 39x39 matrix, function models and
 substance-field (Su-Field) models with SVG rendering, the 76 standard
 solutions, physical contradictions with the four classical separation
@@ -39,7 +39,7 @@ mechanical engineering) -- kTRIZ applies it to inventive problem solving.
 
 == Status
 
-What works today (v0.3.1, pre-release, source only; 478 Kotest test cases):
+What works today (v0.4.0, pre-release; 478 Kotest test cases):
 
 * The contradiction spine: all 39 engineering parameters and 40 inventive
   principles as Kotlin enums with English and German labels, `Contradiction`
@@ -84,7 +84,7 @@ What works today (v0.3.1, pre-release, source only; 478 Kotest test cases):
 | `ktriz mcp`, client configuration, the thirteen tools, render limits, an example call.
 
 | link:docs/release.adoc[Releasing]
-| Maven Central publishing setup (prepared, nothing published yet), secrets, dry run, release procedure.
+| Maven Central publishing (first release v0.4.0), secrets, dry run and release procedure.
 
 | link:docs/roadmap.adoc[Roadmap]
 | What is done, what is deliberately not built.
@@ -92,6 +92,28 @@ What works today (v0.3.1, pre-release, source only; 478 Kotest test cases):
 | Provenance
 | link:docs/matrix-provenance.adoc[Matrix], link:docs/standard-solutions-provenance.adoc[standard solutions], link:docs/physical-contradictions-provenance.adoc[physical contradictions], link:docs/ariz-provenance.adoc[ARIZ].
 |===
+
+[#use-as-library]
+== Use as a library
+
+Since `v0.4.0` the libraries are on Maven Central under the group `dev.ktriz` (JDK 21 or newer):
+
+[source,kotlin]
+----
+repositories { mavenCentral() }
+
+dependencies {
+    implementation("dev.ktriz:ktriz-core:0.4.0")         // DSL, matrix, models
+    // implementation("dev.ktriz:ktriz-render-kuml:0.4.0") // SVG rendering
+    // implementation("dev.ktriz:ktriz-script:0.4.0")      // *.ktriz.kts scripting host
+    // implementation("dev.ktriz:ktriz-mcp:0.4.0")         // MCP server as a library
+}
+----
+
+The command-line tool `ktriz` (`ktriz run`, `ktriz mcp`) is not published as a library; build it with
+`./gradlew :ktriz-cli:installDist` (see <<building,Building>>). The `ktriz-core` jar contains the
+bundled contradiction matrix; whether EU database rights attach to that compilation is not
+conclusively settled (see link:docs/contradiction-matrix.adoc#matrix[Contradiction matrix data]).
 
 [#hello-world]
 == Hello World

@@ -6,6 +6,10 @@ without a deprecation period.
 
 == Unreleased
 
+=== Documentation
+
+* README: the status block describes the v0.4.0 state, and a new "Use as a library" section gives the Maven Central coordinates; `docs/release.adoc` and the documentation table describe the publishing as in use.
+
 == v0.4.0 -- 2026-11-12
 
 === Build

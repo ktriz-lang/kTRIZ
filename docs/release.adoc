@@ -1,8 +1,8 @@
 = Releasing to Maven Central
 :toc:
 
-Maven Central publishing is *prepared but not yet used*: no kTRIZ artifact has been
-published. This page describes the setup and the release procedure.
+kTRIZ publishes its libraries to Maven Central (group `dev.ktriz`). The first publication was
+`v0.4.0` (2026-11-12). This page describes the setup and the release procedure.
 
 [#prerequisites]
 == Prerequisites
