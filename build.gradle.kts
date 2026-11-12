@@ -11,7 +11,7 @@ plugins {
 
 allprojects {
     group = "dev.ktriz"
-    version = "0.3.1"
+    version = "0.4.0"
 }
 
 // Maven Central publishing (prepared, nothing published yet -- see docs/release.adoc).

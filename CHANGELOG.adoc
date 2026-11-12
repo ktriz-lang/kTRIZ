@@ -6,9 +6,11 @@ without a deprecation period.
 
 == Unreleased
 
+== v0.4.0 -- 2026-11-12
+
 === Build
 
-* Maven Central publishing prepared (not yet published): ktriz-core, ktriz-render-kuml, ktriz-script and ktriz-mcp get coordinates `dev.ktriz:<module>`, POM metadata, sources and (empty) javadoc JARs; new tag-triggered workflow `release-maven-central.yml`; see `docs/release.adoc`. No artifact has been published.
+* First release published to Maven Central: `ktriz-core`, `ktriz-render-kuml`, `ktriz-script` and `ktriz-mcp` under the group `dev.ktriz`, with POM metadata, sources and (empty) javadoc JARs, signed. New tag-triggered workflow `release-maven-central.yml`; see `docs/release.adoc`. `ktriz-cli` is not published as a library. The bundled contradiction matrix is part of the `ktriz-core` jar; the database-right question on that compilation is still open (see `docs/contradiction-matrix.adoc`).
 
 === Rendering: labels versus lines
 
